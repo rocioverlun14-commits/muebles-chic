@@ -172,7 +172,7 @@ function App(){
         else if(Array.isArray(obj) && obj.length){ cargado = {pedidos:obj, split:DEFAULT_SPLIT}; }
       }catch(err){ conectado = false; }
 
-      setSync(conectado ? "ok" : "error");
+      setSync(conectado ? (cargado ? "ok" : "vacio") : "error");
 
       if(cargado){
         setPedidos(cargado.pedidos);
@@ -214,8 +214,8 @@ function App(){
   const borrar  = id => { setPedidos(prev=>prev.filter(x=>x.id!==id)); setEditing(null); };
   const {porMes,maxV,minV} = calcMeses(pedidos);
 
-  const syncTxt = {cargando:"Conectando...",guardando:"Guardando...",ok:"Guardado en Drive",error:"Sin conexion (local)"}[sync];
-  const syncCol = sync==="error" ? "#e8b4b4" : "rgba(255,255,255,0.6)";
+  const syncTxt = {cargando:"Conectando...",guardando:"Guardando...",ok:"Guardado en Drive",vacio:"Conectado (Sheet vacio)",error:"Sin conexion (local)"}[sync];
+  const syncCol = (sync==="error"||sync==="vacio") ? "#e8b4b4" : "rgba(255,255,255,0.6)";
 
   return (
     <div style={S.app}>
@@ -358,6 +358,8 @@ function Inicio({pedidos,onIr,porMes,maxV,minV}){
         })}
       </div>
 
+      <Diagnostico/>
+
       <p style={S.secTitle}>Por entregar</p>
       {xEntregar.length===0
         ? <p style={{color:B.textoSuave,fontSize:14}}>Todo entregado!</p>
@@ -374,6 +376,37 @@ function Inicio({pedidos,onIr,porMes,maxV,minV}){
               </button>
             );
           })}
+    </div>
+  );
+}
+
+function Diagnostico(){
+  const [res,setRes] = useState("");
+  const [ver,setVer] = useState(false);
+
+  const probar = async () => {
+    setRes("Consultando el Sheet...");
+    try{
+      const obj = await jsonpGet();
+      const n = obj && Array.isArray(obj.pedidos) ? obj.pedidos.length : 0;
+      const crudo = JSON.stringify(obj).slice(0,180);
+      setRes("LECTURA OK\nPedidos en el Sheet: " + n + "\nContenido: " + crudo);
+    }catch(err){
+      setRes("ERROR DE LECTURA\n" + (err && err.message ? err.message : "desconocido"));
+    }
+  };
+
+  return (
+    <div style={{marginBottom:18}}>
+      <button onClick={()=>setVer(v=>!v)} style={{background:"none",border:"none",color:B.textoSuave,fontSize:11.5,fontWeight:700,cursor:"pointer",padding:"2px 0",textDecoration:"underline"}}>
+        {ver ? "Ocultar diagnostico" : "Ver diagnostico de sincronizacion"}
+      </button>
+      {ver && (
+        <div style={{background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:14,padding:14,marginTop:8}}>
+          <button onClick={probar} style={{width:"100%",background:B.verde,color:B.crema,border:"none",padding:"10px",borderRadius:10,fontWeight:700,fontSize:13,cursor:"pointer"}}>Probar conexion con el Sheet</button>
+          {res && <pre style={{whiteSpace:"pre-wrap",wordBreak:"break-all",fontSize:11,color:B.texto,background:B.crema,padding:10,borderRadius:8,marginTop:10,marginBottom:0,fontFamily:"monospace"}}>{res}</pre>}
+        </div>
+      )}
     </div>
   );
 }
