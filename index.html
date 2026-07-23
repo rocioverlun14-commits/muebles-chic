@@ -232,7 +232,7 @@ function App(){
       </div>
 
       <div style={S.body}>
-        {tab==="inicio"    && <Inicio    pedidos={pedidos} onIr={setTab} porMes={porMes} maxV={maxV} minV={minV}/>}
+        {tab==="inicio"    && <Inicio    pedidos={pedidos} setPedidos={setPedidos} split={split} onIr={setTab} porMes={porMes} maxV={maxV} minV={minV}/>}
         {tab==="pedidos"   && <Pedidos   pedidos={pedidos} onNuevo={()=>setEditing(nuevoPedido())} onEditar={setEditing}/>}
         {tab==="ganancias" && <Ganancias pedidos={pedidos} split={split} setSplit={setSplit} porMes={porMes} maxV={maxV} minV={minV}/>}
         {tab==="calc"      && <CalcPrecio onCrearPedido={d=>setEditing({...nuevoPedido(),...d})}/>}
@@ -307,7 +307,7 @@ function Badge({estado}){
 }
 
 // ══════════════════════════════════════════════════════════
-function Inicio({pedidos,onIr,porMes,maxV,minV}){
+function Inicio({pedidos,setPedidos,split,onIr,porMes,maxV,minV}){
   const mes = new Date().getMonth();
   const delMes = pedidos.filter(p=>mesIndex(p.fecha)===mes);
   const facturado = delMes.reduce((a,p)=>a+(Number(p.total)||0),0);
@@ -358,6 +358,7 @@ function Inicio({pedidos,onIr,porMes,maxV,minV}){
         })}
       </div>
 
+      <Respaldo pedidos={pedidos} setPedidos={setPedidos} split={split}/>
       <Diagnostico/>
 
       <p style={S.secTitle}>Por entregar</p>
@@ -380,6 +381,272 @@ function Inicio({pedidos,onIr,porMes,maxV,minV}){
   );
 }
 
+function Respaldo({pedidos,setPedidos,split}){
+  const [msg,setMsg] = useState("");
+  const fileRef = useRef(null);
+
+  const bajar = (contenido, nombre, tipo) => {
+    const blob = new Blob([contenido], {type:tipo});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  };
+
+  const hoy = () => {
+    const d = new Date();
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  };
+
+  // ── Excel con dos hojas, formato Muebles Chic ──
+  const bajarExcel = () => {
+    const xesc = v => String(v==null?"":v)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+    const celda = (v,estilo) => {
+      const st = estilo ? ' ss:StyleID="'+estilo+'"' : "";
+      if(typeof v === "number" && isFinite(v))
+        return '<Cell'+(estilo?' ss:StyleID="'+estilo+'"':' ss:StyleID="mny"')+'><Data ss:Type="Number">'+v+'</Data></Cell>';
+      return '<Cell'+st+'><Data ss:Type="String">'+xesc(v)+'</Data></Cell>';
+    };
+    const fila = celdas => "<Row>"+celdas.join("")+"</Row>";
+    const encabezado = cols => fila(cols.map(c=>'<Cell ss:StyleID="hdr"><Data ss:Type="String">'+xesc(c)+'</Data></Cell>'));
+
+    // Hoja 1 — ENTREGAS
+    const colsE = ["FECHA","NOMBRE","DIRECCION","PEDIDO","TALLER","TELAS","SEÑAS","TOTAL","RESTO","GANANCIA","COSTO","ESTADO"]
+      .concat(COSTOS.map(c=>c[1].toUpperCase()));
+    const filasE = [...pedidos]
+      .sort((a,b)=>parseFecha(a.fecha)-parseFecha(b.fecha))
+      .map(p=>fila([
+        celda(p.fecha), celda(p.nombre), celda(p.direccion), celda(p.pedido),
+        celda(p.taller), celda(p.telas),
+        celda(Number(p.senas)||0), celda(Number(p.total)||0), celda(Number(p.resto)||0),
+        celda(Number(p.ganancia)||0), celda(Number(p.costo)||0), celda(normE(p.estado)),
+      ].concat(COSTOS.map(([k])=>celda(Number((p.costos||{})[k])||0))));
+
+    // Hoja 2 — COBROS
+    const pA=split.ahorros/100, pC=split.casa/100, pP=split.personales/100;
+    const colsC = ["CLIENTE","FECHA DE COBRO","GANANCIA",
+      "AHORROS "+split.ahorros+"%","CASA "+split.casa+"%","PERSONALES "+split.personales+"%","ESTADO"];
+    const cobrados = [...pedidos].sort((a,b)=>parseFecha(a.fecha)-parseFecha(b.fecha));
+    const totalGan = cobrados.reduce((a,p)=>a+(Number(p.ganancia)||0),0);
+    const filasC = cobrados.map(p=>{
+      const g = Number(p.ganancia)||0;
+      return fila([celda(p.nombre), celda(p.fecha), celda(g),
+        celda(g*pA), celda(g*pC), celda(g*pP), celda(normE(p.estado))]);
+    });
+    const totalRow = fila([
+      '<Cell ss:StyleID="tot"><Data ss:Type="String">TOTAL</Data></Cell>',
+      '<Cell ss:StyleID="tot"><Data ss:Type="String"></Data></Cell>',
+      '<Cell ss:StyleID="totm"><Data ss:Type="Number">'+totalGan+'</Data></Cell>',
+      '<Cell ss:StyleID="totm"><Data ss:Type="Number">'+(totalGan*pA)+'</Data></Cell>',
+      '<Cell ss:StyleID="totm"><Data ss:Type="Number">'+(totalGan*pC)+'</Data></Cell>',
+      '<Cell ss:StyleID="totm"><Data ss:Type="Number">'+(totalGan*pP)+'</Data></Cell>',
+      '<Cell ss:StyleID="tot"><Data ss:Type="String"></Data></Cell>',
+    ]);
+
+    const xml =
+'<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n'+
+'<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n'+
+'<Styles>'+
+ '<Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#F5F0E8"/><Interior ss:Color="#3D4F1C" ss:Pattern="Solid"/><Alignment ss:Vertical="Center"/></Style>'+
+ '<Style ss:ID="mny"><NumberFormat ss:Format="&quot;function Respaldo({pedidos,setPedidos}){
+  const [msg,setMsg] = useState("");
+  const fileRef = useRef(null);
+
+  const bajar = (contenido, nombre, tipo) => {
+    const blob = new Blob([contenido], {type:tipo});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  };
+
+  const hoy = () => {
+    const d = new Date();
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  };
+
+  const bajarExcel = () => {
+    const cols = ["Fecha","Cliente","Direccion","Pedido","Taller","Telas","Estado","Sena","Total","Resto","Costo","Ganancia"];
+    const esc = v => '"' + String(v==null?"":v).replace(/"/g,'""') + '"';
+    const filas = pedidos.map(p=>[p.fecha,p.nombre,p.direccion,p.pedido,p.taller,p.telas,normE(p.estado),p.senas,p.total,p.resto,p.costo,p.ganancia].map(esc).join(";"));
+    const csv = "\uFEFF" + cols.map(esc).join(";") + "\n" + filas.join("\n");
+    bajar(csv, "muebles-chic-"+hoy()+".csv", "text/csv;charset=utf-8;");
+    setMsg("Excel descargado. Abrilo con Excel o Google Sheets.");
+  };
+
+  const bajarRespaldo = () => {
+    bajar(JSON.stringify({pedidos},null,2), "respaldo-muebles-chic-"+hoy()+".json", "application/json");
+    setMsg("Respaldo descargado. Guardalo en un lugar seguro.");
+  };
+
+  const restaurar = e => {
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      try{
+        const d = JSON.parse(ev.target.result);
+        const arr = Array.isArray(d) ? d : d.pedidos;
+        if(!Array.isArray(arr)) throw new Error("formato");
+        if(confirm("Vas a reemplazar los "+pedidos.length+" pedidos actuales por los "+arr.length+" del respaldo. Continuar?")){
+          setPedidos(arr);
+          setMsg("Respaldo restaurado: "+arr.length+" pedidos.");
+        }
+      }catch{ setMsg("El archivo no es un respaldo valido."); }
+    };
+    r.readAsText(f);
+    e.target.value = "";
+  };
+
+  const vaciar = () => {
+    if(!confirm("Vas a borrar los "+pedidos.length+" pedidos cargados para arrancar 2026 desde cero.\n\nBajaste el Excel antes? Si no, cancela y baja el respaldo primero."))
+      return;
+    if(!confirm("Ultima confirmacion: esto no se puede deshacer.\n\nBorrar todo y empezar 2026?"))
+      return;
+    setPedidos([]);
+    setMsg("Listo. Arrancas 2026 desde cero.");
+  };
+
+  const btn = {flex:1,background:B.crema,color:B.verde,border:"1.5px solid "+B.verde,padding:"10px 8px",borderRadius:10,fontWeight:700,fontSize:12.5,cursor:"pointer"};
+
+  return (
+    <div style={{background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:14,padding:14,marginBottom:12}}>
+      <div style={{fontSize:12,fontWeight:800,color:B.verde,textTransform:"uppercase",letterSpacing:0.8,marginBottom:10}}>Respaldo de tus datos</div>
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <button onClick={bajarExcel} style={btn}>Bajar Excel</button>
+        <button onClick={bajarRespaldo} style={btn}>Bajar respaldo</button>
+      </div>
+      <button onClick={()=>fileRef.current && fileRef.current.click()} style={{...btn,width:"100%",background:B.cremaMed,border:"1px solid "+B.cremaOsc,color:B.verdeMed}}>Restaurar desde respaldo</button>
+      <input ref={fileRef} type="file" accept=".json,application/json" onChange={restaurar} style={{display:"none"}}/>
+      <button onClick={vaciar} style={{...btn,width:"100%",marginTop:8,background:"#fdf0f0",border:"1px solid #e8c4c4",color:"#a03028"}}>Empezar 2026 desde cero</button>
+      {msg && <div style={{fontSize:11.5,color:B.verdeMed,marginTop:9,fontWeight:600}}>{msg}</div>}
+    </div>
+  );
+}quot;#,##0.00"/></Style>'+
+ '<Style ss:ID="tot"><Font ss:Bold="1"/><Interior ss:Color="#EDE7D9" ss:Pattern="Solid"/></Style>'+
+ '<Style ss:ID="totm"><Font ss:Bold="1"/><Interior ss:Color="#EDE7D9" ss:Pattern="Solid"/><NumberFormat ss:Format="&quot;function Respaldo({pedidos,setPedidos}){
+  const [msg,setMsg] = useState("");
+  const fileRef = useRef(null);
+
+  const bajar = (contenido, nombre, tipo) => {
+    const blob = new Blob([contenido], {type:tipo});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  };
+
+  const hoy = () => {
+    const d = new Date();
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  };
+
+  const bajarExcel = () => {
+    const cols = ["Fecha","Cliente","Direccion","Pedido","Taller","Telas","Estado","Sena","Total","Resto","Costo","Ganancia"];
+    const esc = v => '"' + String(v==null?"":v).replace(/"/g,'""') + '"';
+    const filas = pedidos.map(p=>[p.fecha,p.nombre,p.direccion,p.pedido,p.taller,p.telas,normE(p.estado),p.senas,p.total,p.resto,p.costo,p.ganancia].map(esc).join(";"));
+    const csv = "\uFEFF" + cols.map(esc).join(";") + "\n" + filas.join("\n");
+    bajar(csv, "muebles-chic-"+hoy()+".csv", "text/csv;charset=utf-8;");
+    setMsg("Excel descargado. Abrilo con Excel o Google Sheets.");
+  };
+
+  const bajarRespaldo = () => {
+    bajar(JSON.stringify({pedidos},null,2), "respaldo-muebles-chic-"+hoy()+".json", "application/json");
+    setMsg("Respaldo descargado. Guardalo en un lugar seguro.");
+  };
+
+  const restaurar = e => {
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      try{
+        const d = JSON.parse(ev.target.result);
+        const arr = Array.isArray(d) ? d : d.pedidos;
+        if(!Array.isArray(arr)) throw new Error("formato");
+        if(confirm("Vas a reemplazar los "+pedidos.length+" pedidos actuales por los "+arr.length+" del respaldo. Continuar?")){
+          setPedidos(arr);
+          setMsg("Respaldo restaurado: "+arr.length+" pedidos.");
+        }
+      }catch{ setMsg("El archivo no es un respaldo valido."); }
+    };
+    r.readAsText(f);
+    e.target.value = "";
+  };
+
+  const btn = {flex:1,background:B.crema,color:B.verde,border:"1.5px solid "+B.verde,padding:"10px 8px",borderRadius:10,fontWeight:700,fontSize:12.5,cursor:"pointer"};
+
+  return (
+    <div style={{background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:14,padding:14,marginBottom:12}}>
+      <div style={{fontSize:12,fontWeight:800,color:B.verde,textTransform:"uppercase",letterSpacing:0.8,marginBottom:10}}>Respaldo de tus datos</div>
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <button onClick={bajarExcel} style={btn}>Bajar Excel</button>
+        <button onClick={bajarRespaldo} style={btn}>Bajar respaldo</button>
+      </div>
+      <button onClick={()=>fileRef.current && fileRef.current.click()} style={{...btn,width:"100%",background:B.cremaMed,border:"1px solid "+B.cremaOsc,color:B.verdeMed}}>Restaurar desde respaldo</button>
+      <input ref={fileRef} type="file" accept=".json,application/json" onChange={restaurar} style={{display:"none"}}/>
+      {msg && <div style={{fontSize:11.5,color:B.verdeMed,marginTop:9,fontWeight:600}}>{msg}</div>}
+    </div>
+  );
+}quot;#,##0.00"/></Style>'+
+'</Styles>\n'+
+'<Worksheet ss:Name="ENTREGAS 2026"><Table>'+encabezado(colsE)+filasE.join("")+'</Table></Worksheet>\n'+
+'<Worksheet ss:Name="COBROS"><Table>'+encabezado(colsC)+filasC.join("")+totalRow+'</Table></Worksheet>\n'+
+'</Workbook>';
+
+    bajar(xml, "MC 2026 - "+hoy()+".xls", "application/vnd.ms-excel;charset=utf-8;");
+    setMsg("Excel descargado con las hojas ENTREGAS 2026 y COBROS.");
+  };
+
+  const bajarRespaldo = () => {
+    bajar(JSON.stringify({pedidos},null,2), "respaldo-muebles-chic-"+hoy()+".json", "application/json");
+    setMsg("Respaldo descargado. Guardalo en un lugar seguro.");
+  };
+
+  const restaurar = e => {
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      try{
+        const d = JSON.parse(ev.target.result);
+        const arr = Array.isArray(d) ? d : d.pedidos;
+        if(!Array.isArray(arr)) throw new Error("formato");
+        if(confirm("Vas a reemplazar los "+pedidos.length+" pedidos actuales por los "+arr.length+" del respaldo. Continuar?")){
+          setPedidos(arr);
+          setMsg("Respaldo restaurado: "+arr.length+" pedidos.");
+        }
+      }catch{ setMsg("El archivo no es un respaldo valido."); }
+    };
+    r.readAsText(f);
+    e.target.value = "";
+  };
+
+  const btn = {flex:1,background:B.crema,color:B.verde,border:"1.5px solid "+B.verde,padding:"10px 8px",borderRadius:10,fontWeight:700,fontSize:12.5,cursor:"pointer"};
+
+  return (
+    <div style={{background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:14,padding:14,marginBottom:12}}>
+      <div style={{fontSize:12,fontWeight:800,color:B.verde,textTransform:"uppercase",letterSpacing:0.8,marginBottom:10}}>Respaldo de tus datos</div>
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <button onClick={bajarExcel} style={btn}>Bajar Excel</button>
+        <button onClick={bajarRespaldo} style={btn}>Bajar respaldo</button>
+      </div>
+      <button onClick={()=>fileRef.current && fileRef.current.click()} style={{...btn,width:"100%",background:B.cremaMed,border:"1px solid "+B.cremaOsc,color:B.verdeMed}}>Restaurar desde respaldo</button>
+      <input ref={fileRef} type="file" accept=".json,application/json" onChange={restaurar} style={{display:"none"}}/>
+      {msg && <div style={{fontSize:11.5,color:B.verdeMed,marginTop:9,fontWeight:600}}>{msg}</div>}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
 function Diagnostico(){
   const [res,setRes] = useState("");
   const [ver,setVer] = useState(false);
