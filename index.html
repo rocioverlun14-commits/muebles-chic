@@ -450,7 +450,7 @@ function Respaldo({pedidos,setPedidos,split}){
         celda(p.taller), celda(p.telas),
         celda(Number(p.senas)||0), celda(Number(p.total)||0), celda(Number(p.resto)||0),
         celda(Number(p.ganancia)||0), celda(Number(p.costo)||0), celda(normE(p.estado)),
-      ].concat(COSTOS.map(([k])=>celda(Number((p.costos||{})[k])||0))));
+      ].concat(COSTOS.map(([k])=>celda(Number((p.costos||{})[k])||0)))));
 
     // Hoja 2 — COBROS
     const pA=split.ahorros/100, pC=split.casa/100, pP=split.personales/100;
