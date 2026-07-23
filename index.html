@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Muebles Chic — Gestion</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%233d4f1c'/><text y='68' x='50' text-anchor='middle' font-size='46' font-family='Georgia' fill='%23f5f0e8'>MC</text></svg>">
 <style>
@@ -8,7 +8,8 @@
   #root{height:100%}
   button{font-family:inherit}
   input,textarea,select{font-family:inherit}
-  ::-webkit-scrollbar{width:0;height:0}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-thumb{background:#d9d0be;border-radius:8px}
 </style>
 
 <div id="root"></div>
@@ -19,13 +20,9 @@
 
 <script type="text/babel">
 var useState = React.useState, useEffect = React.useEffect, useRef = React.useRef;
-
-var VERSION = "v4";
-
-// ═══════════════ CONFIG ═══════════════
+var VERSION = "v5";
 var GS_URL = "https://script.google.com/macros/s/AKfycbzp30H5eqw2vIoKDZgvvSu91Vw5h5I6td381O6EFmcVXgPPAuMmE0APx-SdbdKxnQxicA/exec";
 
-// ═══════════════ MARCA ═══════════════
 var B = {
   verde:"#3d4f1c", verdeOsc:"#2d3a14", verdeMed:"#4a5e22", verdeClaro:"#6b7c3a",
   crema:"#f5f0e8", cremaMed:"#ede7d9", cremaOsc:"#d9d0be",
@@ -36,7 +33,7 @@ function fmt(n){
   return "$ " + (Number(n)||0).toLocaleString("es-AR",{minimumFractionDigits:0,maximumFractionDigits:2});
 }
 
-var TALLERES = ["Vane","Toto","Angie","Guillermo","Roni","Otro"];
+var TALLERES = ["Vane","Toto","Angie","Guillermo","Angie y Guillermo","Roni","Yo","Otro"];
 var ESTADOS  = ["Pendiente","Confeccion","Entregado"];
 var E_COLOR  = {
   Pendiente:  {bg:"#fef9e7", fg:"#7a6000", dot:"#c9a800"},
@@ -58,8 +55,8 @@ var COSTOS = [
   ["angie","Angie"],["angieInsumo","Angie Insumo"],["guillermo","Guillermo"],
   ["colocador","Colocador"],["riel","Riel"],["vane","Vane"],["vaneInsumo","Vane Insumo"],
   ["telasExpress","Telas Express"],["toto","Toto"],["alplast","Alplast"],
-  ["dietextil","Dietextil"],["placas","Placas"],["juan","Juan Telas"],
-  ["mary","Telas Mary"],["nafta","Nafta"],["sacaMedidas","Saca Medidas"]
+  ["dietextil","Dietextil"],["telas","Telas"],["peaje","Peaje"],["nafta","Nafta"],
+  ["sacaMedidas","Saca Medidas"],["tapiceria","Tapiceria"],["lavado","Lavado"],["matLavado","Materiales Lavado"]
 ];
 
 function parseFecha(f){
@@ -102,41 +99,48 @@ function calcMeses(pedidos){
   };
 }
 
-// ═══════════════ DATOS INICIALES ═══════════════
+// ═══════════ DATOS 2026 ═══════════
 var SEED = [
-  {fecha:"3/2", nombre:"Victoria", direccion:"Devoto", pedido:"2 fundas para acolchado reversibles", taller:"Vane", ganancia:89170, total:233000, costo:143830, estado:"Entregado"},
-  {fecha:"26/1", nombre:"Ana", direccion:"Milberg Town", pedido:"Funda para sillon + puff + pillows x2", taller:"Vane", ganancia:198610, total:412000, costo:213390, estado:"Entregado"},
-  {fecha:"26/1", nombre:"Ana", direccion:"Milberg Town", pedido:"Funda para exterior", taller:"Vane", ganancia:133746, total:276000, costo:142254, estado:"Entregado"},
-  {fecha:"29/1", nombre:"Sandra", direccion:"Olivos", pedido:"2 sillones tapizados en lino con funda + pillow", taller:"Toto", ganancia:844708, total:2088000, costo:1243292, estado:"Entregado"},
-  {fecha:"4/1", nombre:"Josefina", direccion:"Gral Rodriguez", pedido:"Cortina 4,10x2,37 + riel y entrega", taller:"Angie", ganancia:174978, total:392000, costo:217022, estado:"Entregado"},
-  {fecha:"28/1", nombre:"Vero", direccion:"Florida", pedido:"11 rieles de riel americano (33.8 mts)", taller:"Guillermo", ganancia:204000, total:1211000, costo:1007000, estado:"Entregado"},
-  {fecha:"1/5", nombre:"Victoria", direccion:"Devoto", pedido:"Funda sillon + rellenos vellon", taller:"Vane", ganancia:142400, total:464000, costo:321600, estado:"Confeccion"},
-  {fecha:"14/3", nombre:"Walter", direccion:"San Gabriel", pedido:"Camastro 2,00", taller:"Toto", ganancia:683700, total:1297700, costo:614000, estado:"Entregado"},
-  {fecha:"25/2", nombre:"Damiana", direccion:"Milberg Town", pedido:"8 fundas almohadon", taller:"Vane", ganancia:63974, total:119000, costo:55026, estado:"Entregado"},
-  {fecha:"25/2", nombre:"Veronica", direccion:"San Matias", pedido:"2 fundas para colchoneta", taller:"Vane", ganancia:111176, total:313000, costo:201824, estado:"Entregado"},
-  {fecha:"1/3", nombre:"Ana", direccion:"Milberg Town 71", pedido:"3 combos exterior con rellenos", taller:"Vane", ganancia:288100, total:675000, costo:386900, estado:"Entregado"},
-  {fecha:"11/3", nombre:"More", direccion:"Recoleta", pedido:"Funda curva", taller:"Vane", ganancia:159600, total:310000, costo:150400, estado:"Entregado"},
-  {fecha:"13/4", nombre:"Laura", direccion:"Beccar", pedido:"3 fundas. 2 ind. 1 de 2,30 / placa asiento", taller:"Vane", ganancia:248500, total:637000, costo:388500, estado:"Entregado"},
-  {fecha:"23/4", nombre:"Manuel", direccion:"San Marco", pedido:"2 fundas Panama pesado + pillows", taller:"Vane", ganancia:293560, total:698000, costo:404440, estado:"Entregado"},
-  {fecha:"23/4", nombre:"Pilar", direccion:"Don Torcuato", pedido:"15 cortinas. 1 roller blackout. Barrales y rieles", taller:"Angie", ganancia:1064233, total:3993000, costo:2928767, estado:"Entregado"},
-  {fecha:"17/4", nombre:"Thais", direccion:"Nordelta", pedido:"1 cortina", taller:"Angie", ganancia:-1300, total:147000, costo:148300, estado:"Entregado"},
-  {fecha:"17/4", nombre:"Annie", direccion:"El Encuentro 74", pedido:"1 blackout 446x258 sin pliegue", taller:"Angie", ganancia:150700, total:288000, costo:137300, estado:"Entregado"},
-  {fecha:"27/4", nombre:"Delfina Basile", direccion:"Cabos del Lago", pedido:"Funda sillon + recambio asiento + cortina gasa", taller:"Angie", ganancia:251738, total:599000, costo:347262, estado:"Entregado"},
-  {fecha:"30/5", nombre:"Agustin Galeano", direccion:"Floresta CABA", pedido:"1 cortina 2,60x220 para barral", taller:"Angie", ganancia:153000, total:382000, costo:229000, estado:"Entregado"},
-  {fecha:"15/5", nombre:"Fabian", direccion:"Villa Vela", pedido:"2 cortinas gasa, 1 blackout", taller:"Angie", ganancia:426982, total:1144000, costo:717018, estado:"Entregado"},
-  {fecha:"11/5", nombre:"Thais", direccion:"Sendero", pedido:"Camabox 160x190", taller:"Roni", ganancia:0, total:680000, costo:680000, estado:"Confeccion"},
-  {fecha:"1/5", nombre:"Fer", direccion:"Beccar", pedido:"Cama perro", taller:"Vane", ganancia:9000, total:27000, costo:18000, estado:"Entregado"},
-  {fecha:"29/5", nombre:"Manuel", direccion:"San Marco", pedido:"4 asientos exterior", taller:"Vane", ganancia:153427.5, total:352000, costo:198572.5, estado:"Pendiente"},
-  {fecha:"29/5", nombre:"Ani", direccion:"El Encuentro", pedido:"1 blackout 460x240", taller:"Angie", ganancia:142000, total:288000, costo:146000, estado:"Entregado"}
+  {fecha:"4/1", nombre:"Josefina", direccion:"General Rodriguez", pedido:"Cortina 4,10 x 2,37 + riel y entrega", taller:"Angie", telas:"15 mts gasa offwhite", senas:0, total:392000, resto:0, ganancia:174978, costo:217022, estado:"Entregado"},
+  {fecha:"26/1", nombre:"Ana", direccion:"Milberg Town", pedido:"Funda para sillon + puff + pillows x2", taller:"Vane", telas:"", senas:0, total:412000, resto:0, ganancia:198610, costo:213390, estado:"Entregado"},
+  {fecha:"26/1", nombre:"Ana", direccion:"Milberg Town", pedido:"Funda para exterior", taller:"Vane", telas:"", senas:0, total:276000, resto:0, ganancia:133746, costo:142254, estado:"Entregado"},
+  {fecha:"28/1", nombre:"Vero", direccion:"Florida - La Lucila", pedido:"11 rieles de riel americano (33.8 mts)", taller:"Guillermo", telas:"", senas:747500, total:1211000, resto:463500, ganancia:204000, costo:1007000, estado:"Entregado"},
+  {fecha:"29/1", nombre:"Sandra", direccion:"Olivos", pedido:"2 sillones tapizados en lino con funda tusor + 2 pillow", taller:"Toto", telas:"", senas:0, total:2088000, resto:0, ganancia:844708, costo:1243292, estado:"Entregado"},
+  {fecha:"3/2", nombre:"Victoria", direccion:"Devoto", pedido:"2 fundas para acolchado reversibles", taller:"Vane", telas:"", senas:0, total:233000, resto:0, ganancia:89170, costo:143830, estado:"Entregado"},
+  {fecha:"25/2", nombre:"Damiana", direccion:"Milberg Town", pedido:"8 fundas almohadon", taller:"Vane", telas:"", senas:0, total:119000, resto:0, ganancia:63974, costo:55026, estado:"Entregado"},
+  {fecha:"25/2", nombre:"Veronica", direccion:"San Matias", pedido:"2 fundas para colchoneta", taller:"Vane", telas:"", senas:160000, total:313000, resto:153000, ganancia:111176, costo:201824, estado:"Entregado"},
+  {fecha:"1/3", nombre:"Ana", direccion:"Milberg Town 71", pedido:"3 combos exterior con rellenos", taller:"Vane", telas:"", senas:0, total:675000, resto:0, ganancia:288100, costo:386900, estado:"Entregado"},
+  {fecha:"11/3", nombre:"More", direccion:"Recoleta", pedido:"Funda curva", taller:"Vane", telas:"9 mts fusor natural", senas:186000, total:310000, resto:124000, ganancia:159600, costo:150400, estado:"Entregado"},
+  {fecha:"14/3", nombre:"Walter", direccion:"San Gabriel", pedido:"Camastro 2,00", taller:"Toto", telas:"", senas:747500, total:1297700, resto:550200, ganancia:683700, costo:614000, estado:"Entregado"},
+  {fecha:"13/4", nombre:"Laura", direccion:"Beccar", pedido:"3 fundas. 2 individuales, 1 de 2,30 / placa asiento", taller:"Vane", telas:"off white tusor", senas:300000, total:527000, resto:337000, ganancia:248500, costo:388500, estado:"Entregado"},
+  {fecha:"17/4", nombre:"Thais", direccion:"Nordelta", pedido:"1 cortina", taller:"Angie", telas:"", senas:0, total:147000, resto:0, ganancia:-1300, costo:148300, estado:"Entregado"},
+  {fecha:"17/4", nombre:"Annie", direccion:"El Encuentro 74", pedido:"1 blackout 446x258 sin pliegue", taller:"Angie", telas:"", senas:172800, total:288000, resto:115200, ganancia:150700, costo:137300, estado:"Entregado"},
+  {fecha:"23/4", nombre:"Manuel", direccion:"San Marco", pedido:"2 fundas de Panama pesado 1,80 y 1,90 + pillows", taller:"Vane", telas:"11 mts (2,80)", senas:450000, total:698000, resto:248000, ganancia:293560, costo:404440, estado:"Entregado"},
+  {fecha:"23/4", nombre:"Pilar", direccion:"Don Torcuato", pedido:"15 cortinas. 1 roller blackout. Barrales y rieles", taller:"Angie", telas:"62 mts (220 gasa) y 64 (1,50 blackout)", senas:2395800, total:3993000, resto:1597200, ganancia:1064233, costo:2928767, estado:"Entregado"},
+  {fecha:"27/4", nombre:"Delfina Basile", direccion:"Cabos del Lago 138", pedido:"Funda sillon individual + recambio de asiento + cortina de gasa completa", taller:"Angie", telas:"12,5 gasa (220) y 6,5 fusor pesado / 50 x 45 x 14 placa soft", senas:359400, total:599000, resto:239600, ganancia:251738, costo:347262, estado:"Entregado"},
+  {fecha:"1/5", nombre:"Victoria", direccion:"Devoto", pedido:"Funda sillon + rellenos vellon", taller:"Vane", telas:"", senas:0, total:464000, resto:0, ganancia:142400, costo:321600, estado:"Entregado"},
+  {fecha:"1/5", nombre:"Fer", direccion:"Beccar", pedido:"Cama perro", taller:"Vane", telas:"vison fusor", senas:27000, total:27000, resto:0, ganancia:9000, costo:18000, estado:"Entregado"},
+  {fecha:"11/5", nombre:"Thais", direccion:"Sendero", pedido:"Camabox 160 x 190", taller:"Roni", telas:"Cerradura y material Scotch", senas:340000, total:680000, resto:340000, ganancia:0, costo:680000, estado:"Entregado"},
+  {fecha:"15/5", nombre:"Fabian", direccion:"Villa Vela", pedido:"2 cortinas gasa, 1 blackout", taller:"Angie", telas:"4,5 habana / 4 cortes", senas:211200, total:1144000, resto:352000, ganancia:426982, costo:717018, estado:"Entregado"},
+  {fecha:"29/5", nombre:"Manuel", direccion:"San Marco", pedido:"4 asientos exterior", taller:"Vane", telas:"", senas:211200, total:352000, resto:140800, ganancia:153427.5, costo:198572.5, estado:"Entregado"},
+  {fecha:"29/5", nombre:"Ani", direccion:"El Encuentro", pedido:"1 blackout 460 x 240", taller:"Angie", telas:"6 mts roble melody blanco", senas:172800, total:288000, resto:115200, ganancia:142000, costo:146000, estado:"Entregado"},
+  {fecha:"30/5", nombre:"Agustin Galeano", direccion:"Floresta, CABA", pedido:"1 cortina 2,60 x 2,20 para barral", taller:"Angie", telas:"", senas:0, total:382000, resto:0, ganancia:153000, costo:229000, estado:"Entregado"},
+  {fecha:"9/6", nombre:"Ximena", direccion:"San Matias", pedido:"4 cortinas de gasa 3,00/3,30 + 1 cortina de gasa 1,00", taller:"Angie", telas:"9 mts gasa off", senas:632000, total:1053000, resto:421000, ganancia:484000, costo:569000, estado:"Entregado"},
+  {fecha:"1/7", nombre:"Sol", direccion:"Caballito", pedido:"4 cortinas a medida textil y 1 roller colocado", taller:"Angie y Guillermo", telas:"Gasa offwhite / chan lette", senas:1290600, total:2151000, resto:860400, ganancia:618976.8, costo:1532023.2, estado:"Entregado"},
+  {fecha:"1/7", nombre:"Lucrecia", direccion:"San Isidro", pedido:"2 cortinas + 1 riel / colocacion", taller:"Angie y Guillermo", telas:"Gasa 24 mts / mc 2,6", senas:396600, total:661000, resto:264400, ganancia:306418.6, costo:354581.4, estado:"Entregado"},
+  {fecha:"3/7", nombre:"Ana", direccion:"Boulogne", pedido:"6 sillas - lavado, proteccion, retapizado, reemplazo de asiento y encolado. Envio y retiro", taller:"Yo", telas:"2,20 genero golden onyx", senas:553200, total:922000, resto:368800, ganancia:120000, costo:802000, estado:"Entregado"},
+  {fecha:"", nombre:"Gisel", direccion:"", pedido:"", taller:"Vane", telas:"", senas:0, total:0, resto:0, ganancia:0, costo:0, estado:"Pendiente"},
+  {fecha:"", nombre:"Virginia", direccion:"", pedido:"", taller:"Vane", telas:"", senas:0, total:0, resto:0, ganancia:0, costo:0, estado:"Pendiente"},
+  {fecha:"", nombre:"Lara", direccion:"", pedido:"", taller:"Vane", telas:"", senas:0, total:0, resto:0, ganancia:0, costo:0, estado:"Pendiente"}
 ].map(function(p,i){
-  return {
-    id:"seed-"+i, telas:"", comprar:0, senas:0, resto:0, costos:{},
-    fecha:p.fecha, nombre:p.nombre, direccion:p.direccion, pedido:p.pedido,
-    taller:p.taller, ganancia:p.ganancia, total:p.total, costo:p.costo, estado:p.estado
-  };
+  p.id = "mc26-" + i;
+  p.comprar = 0;
+  p.costos = {};
+  return p;
 });
 
 var DEFAULT_SPLIT = {ahorros:20, casa:40, personales:40};
+var DEFAULT_PCT_SENA = 60;
 
 function nuevoPedido(){
   return {
@@ -147,7 +151,7 @@ function nuevoPedido(){
   };
 }
 
-// ═══════════════ SINCRONIZACION ═══════════════
+// ═══════════ SYNC ═══════════
 function jsonpGet(){
   return new Promise(function(resolve,reject){
     var cb = "mc_cb_" + Date.now() + "_" + Math.floor(Math.random()*9999);
@@ -172,19 +176,12 @@ function formPost(data){
     ifr.name = name;
     ifr.style.display = "none";
     document.body.appendChild(ifr);
-
     var f = document.createElement("form");
-    f.method = "POST";
-    f.action = GS_URL;
-    f.target = name;
-    f.style.display = "none";
+    f.method = "POST"; f.action = GS_URL; f.target = name; f.style.display = "none";
     var i = document.createElement("input");
-    i.type = "hidden";
-    i.name = "data";
-    i.value = JSON.stringify(data);
+    i.type = "hidden"; i.name = "data"; i.value = JSON.stringify(data);
     f.appendChild(i);
     document.body.appendChild(f);
-
     var listo = false;
     function limpiar(){
       if(listo) return;
@@ -201,7 +198,7 @@ function formPost(data){
   });
 }
 
-// ═══════════════ ICONOS ═══════════════
+// ═══════════ ICONOS ═══════════
 function Ico(props){
   return React.createElement("svg", {
     width: props.size||21, height: props.size||21, viewBox:"0 0 24 24",
@@ -213,6 +210,7 @@ function IcoHome(p){ return <Ico {...p}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5
 function IcoList(p){ return <Ico {...p}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></Ico>; }
 function IcoMoney(p){ return <Ico {...p}><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></Ico>; }
 function IcoCalc(p){ return <Ico {...p}><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h4"/></Ico>; }
+function IcoGear(p){ return <Ico {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></Ico>; }
 function IcoPlus(p){ return <Ico {...p}><path d="M12 5v14M5 12h14"/></Ico>; }
 function IcoX(p){ return <Ico {...p}><path d="M18 6L6 18M6 6l12 12"/></Ico>; }
 function IcoSearch(p){ return <Ico {...p}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></Ico>; }
@@ -220,47 +218,54 @@ function IcoTrash(p){ return <Ico {...p}><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H
 function IcoChev(p){ return <Ico {...p}><path d="M9 18l6-6-6-6"/></Ico>; }
 function IcoCal(p){ return <Ico {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></Ico>; }
 function IcoCloud(p){ return <Ico {...p}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></Ico>; }
+function IcoMonitor(p){ return <Ico {...p}><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></Ico>; }
+function IcoTablet(p){ return <Ico {...p}><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></Ico>; }
 
-// ═══════════════ APP ═══════════════
+// ═══════════ APP ═══════════
 function App(){
   var tabS = useState("inicio"), tab = tabS[0], setTab = tabS[1];
   var pedS = useState(null), pedidos = pedS[0], setPedidos = pedS[1];
   var splS = useState(DEFAULT_SPLIT), split = splS[0], setSplit = splS[1];
+  var pctS = useState(DEFAULT_PCT_SENA), pctSena = pctS[0], setPctSena = pctS[1];
   var ediS = useState(null), editing = ediS[0], setEditing = ediS[1];
   var loaS = useState(false), loaded = loaS[0], setLoaded = loaS[1];
   var synS = useState("cargando"), sync = synS[0], setSync = synS[1];
+  var deskS = useState(window.innerWidth >= 900), desk = deskS[0], setDesk = deskS[1];
   var first = useRef(true);
 
   useEffect(function(){
-    (function(){
-      jsonpGet().then(function(obj){
-        var cargado = null;
-        if(obj && obj.pedidos && obj.pedidos.length) cargado = obj;
-        else if(obj && obj.length) cargado = {pedidos:obj, split:DEFAULT_SPLIT};
+    try{
+      var pref = localStorage.getItem("mc_desk");
+      if(pref !== null) setDesk(pref === "1");
+    }catch(err){}
 
-        if(cargado){
-          setPedidos(cargado.pedidos);
-          if(cargado.split) setSplit(cargado.split);
-          setSync("ok");
-        }else{
-          cargarLocal();
-          setSync("vacio");
-        }
-        setLoaded(true);
-      }).catch(function(){
+    jsonpGet().then(function(obj){
+      var cargado = null;
+      if(obj && obj.pedidos && obj.pedidos.length) cargado = obj;
+      if(cargado){
+        setPedidos(cargado.pedidos);
+        if(cargado.split) setSplit(cargado.split);
+        if(cargado.pctSena) setPctSena(cargado.pctSena);
+        setSync("ok");
+      }else{
         cargarLocal();
-        setSync("error");
-        setLoaded(true);
-      });
-    })();
+        setSync("vacio");
+      }
+      setLoaded(true);
+    }).catch(function(){
+      cargarLocal();
+      setSync("error");
+      setLoaded(true);
+    });
 
     function cargarLocal(){
       try{
-        var local = localStorage.getItem("mc_data");
+        var local = localStorage.getItem("mc_data26");
         if(local){
           var d = JSON.parse(local);
           setPedidos(d.pedidos || SEED);
           if(d.split) setSplit(d.split);
+          if(d.pctSena) setPctSena(d.pctSena);
         }else{
           setPedidos(SEED);
         }
@@ -271,8 +276,8 @@ function App(){
   useEffect(function(){
     if(!loaded || !pedidos) return;
     if(first.current){ first.current = false; return; }
-    var data = {pedidos:pedidos, split:split};
-    try{ localStorage.setItem("mc_data", JSON.stringify(data)); }catch(err){}
+    var data = {pedidos:pedidos, split:split, pctSena:pctSena};
+    try{ localStorage.setItem("mc_data26", JSON.stringify(data)); }catch(err){}
     setSync("guardando");
     formPost(data).then(function(){
       return new Promise(function(r){ setTimeout(r, 1500); });
@@ -282,7 +287,13 @@ function App(){
       var n = (obj && obj.pedidos) ? obj.pedidos.length : -1;
       setSync(n === pedidos.length ? "ok" : "error");
     }).catch(function(){ setSync("error"); });
-  }, [pedidos, split, loaded]);
+  }, [pedidos, split, pctSena, loaded]);
+
+  function toggleDesk(){
+    var nd = !desk;
+    setDesk(nd);
+    try{ localStorage.setItem("mc_desk", nd ? "1" : "0"); }catch(err){}
+  }
 
   if(!pedidos){
     return <div style={{display:"flex",height:"100%",alignItems:"center",justifyContent:"center",background:B.crema,color:B.verde,fontFamily:"Georgia,serif",fontSize:16}}>Cargando...</div>;
@@ -306,12 +317,71 @@ function App(){
   var syncTxt = {cargando:"Conectando...", guardando:"Guardando...", ok:"Guardado en Drive", vacio:"Conectado (Sheet vacio)", error:"Sin conexion (local)"}[sync];
   var syncCol = (sync === "error" || sync === "vacio") ? "#e8b4b4" : "rgba(255,255,255,0.6)";
 
-  var tabs = [["inicio",IcoHome,"Inicio"],["pedidos",IcoList,"Pedidos"],["ganancias",IcoMoney,"Ganancias"],["calc",IcoCalc,"Precio"]];
+  var tabs = [
+    ["inicio", IcoHome, "Inicio"],
+    ["pedidos", IcoList, "Pedidos"],
+    ["ganancias", IcoMoney, "Ganancias"],
+    ["calc", IcoCalc, "Precio"],
+    ["config", IcoGear, "Config"]
+  ];
 
+  var contenido = (
+    <React.Fragment>
+      {tab === "inicio"    ? <Inicio pedidos={pedidos} onIr={setTab} porMes={mm.porMes} maxV={mm.maxV} minV={mm.minV} desk={desk}/> : null}
+      {tab === "pedidos"   ? <Pedidos pedidos={pedidos} onNuevo={function(){ setEditing(nuevoPedido()); }} onEditar={setEditing} desk={desk}/> : null}
+      {tab === "ganancias" ? <Ganancias pedidos={pedidos} split={split} setSplit={setSplit} porMes={mm.porMes} maxV={mm.maxV} minV={mm.minV} desk={desk}/> : null}
+      {tab === "calc"      ? <CalcPrecio desk={desk} onCrearPedido={function(d){
+          var np = nuevoPedido();
+          np.total = d.total; np.costo = d.costo; np.ganancia = d.ganancia;
+          setEditing(np);
+        }}/> : null}
+      {tab === "config"    ? <Config pedidos={pedidos} setPedidos={setPedidos} split={split} pctSena={pctSena} setPctSena={setPctSena} desk={desk} toggleDesk={toggleDesk}/> : null}
+    </React.Fragment>
+  );
+
+  // ── Layout ESCRITORIO: nav lateral ──
+  if(desk){
+    return (
+      <div style={{height:"100%",display:"flex",background:B.cremaMed}}>
+        <div style={{width:210,background:B.verde,display:"flex",flexDirection:"column",padding:"20px 12px",flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24,paddingLeft:6}}>
+            <div style={S.logoBadge}>MC</div>
+            <div>
+              <div style={{fontSize:14,fontWeight:900,color:B.crema,fontFamily:"Georgia,serif",letterSpacing:1.5}}>MUEBLES</div>
+              <div style={{fontSize:13,color:B.crema,fontFamily:"Georgia,serif",letterSpacing:1.5}}>CHIC</div>
+            </div>
+          </div>
+          {tabs.map(function(t){
+            var k = t[0], Icon = t[1], label = t[2];
+            return (
+              <button key={k} onClick={function(){ setTab(k); }}
+                style={{display:"flex",alignItems:"center",gap:11,padding:"11px 14px",marginBottom:4,borderRadius:10,border:"none",cursor:"pointer",textAlign:"left",
+                  background: tab===k ? "rgba(255,255,255,0.16)" : "transparent",
+                  color: tab===k ? B.crema : B.verdeClaro,
+                  fontWeight: tab===k ? 700 : 500, fontSize:14}}>
+                <Icon size={19} w={tab===k?2.4:1.8}/> {label}
+              </button>
+            );
+          })}
+          <div style={{flex:1}}/>
+          <div style={{display:"flex",alignItems:"center",gap:6,color:syncCol,fontSize:11,padding:"0 8px 10px"}}>
+            <IcoCloud size={12} w={2.2} color={syncCol}/> {syncTxt}
+          </div>
+          <button onClick={toggleDesk} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,background:"rgba(255,255,255,0.1)",color:B.crema,border:"none",borderRadius:10,padding:"9px",cursor:"pointer",fontSize:12,fontWeight:700}}>
+            <IcoTablet size={15} w={2}/> Vista tablet
+          </button>
+        </div>
+        <div style={{flex:1,overflow:"hidden",display:"flex"}}>{contenido}</div>
+        {editing ? <FormPedido pedido={editing} pctSena={pctSena} onGuardar={guardar} onBorrar={borrar} onCerrar={function(){ setEditing(null); }} desk={desk}/> : null}
+      </div>
+    );
+  }
+
+  // ── Layout TABLET / MOBILE ──
   return (
     <div style={S.app}>
       <div style={S.header}>
-        <div style={S.logoRow}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
           <div style={S.logoBadge}>MC</div>
           <div style={{flex:1}}>
             <div style={S.logoText}>MUEBLES <span style={{color:B.crema,fontWeight:400}}>CHIC</span></div>
@@ -319,19 +389,14 @@ function App(){
               <IcoCloud size={11} w={2.2} color={syncCol}/> {syncTxt}
             </div>
           </div>
+          <button onClick={toggleDesk} title="Vista escritorio"
+            style={{background:"rgba(255,255,255,0.14)",color:B.crema,border:"none",borderRadius:10,width:38,height:38,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+            <IcoMonitor size={18} w={2}/>
+          </button>
         </div>
       </div>
 
-      <div style={S.body}>
-        {tab === "inicio"    ? <Inicio pedidos={pedidos} setPedidos={setPedidos} split={split} onIr={setTab} porMes={mm.porMes} maxV={mm.maxV} minV={mm.minV}/> : null}
-        {tab === "pedidos"   ? <Pedidos pedidos={pedidos} onNuevo={function(){ setEditing(nuevoPedido()); }} onEditar={setEditing}/> : null}
-        {tab === "ganancias" ? <Ganancias pedidos={pedidos} split={split} setSplit={setSplit} porMes={mm.porMes} maxV={mm.maxV} minV={mm.minV}/> : null}
-        {tab === "calc"      ? <CalcPrecio onCrearPedido={function(d){
-            var np = nuevoPedido();
-            np.total = d.total; np.costo = d.costo; np.ganancia = d.ganancia;
-            setEditing(np);
-          }}/> : null}
-      </div>
+      <div style={S.body}>{contenido}</div>
 
       <div style={S.nav}>
         {tabs.map(function(t){
@@ -341,23 +406,22 @@ function App(){
               style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 0 5px",background:"none",border:"none",cursor:"pointer",
                 color: tab===k ? B.crema : B.verdeClaro,
                 borderTop: tab===k ? "3px solid "+B.crema : "3px solid transparent"}}>
-              <Icon size={21} w={tab===k?2.5:1.8}/>
-              <span style={{fontSize:10.5,marginTop:3,fontWeight:tab===k?700:500,letterSpacing:0.3}}>{label}</span>
+              <Icon size={20} w={tab===k?2.5:1.8}/>
+              <span style={{fontSize:10,marginTop:3,fontWeight:tab===k?700:500,letterSpacing:0.2}}>{label}</span>
             </button>
           );
         })}
       </div>
 
-      {editing ? <FormPedido pedido={editing} onGuardar={guardar} onBorrar={borrar} onCerrar={function(){ setEditing(null); }}/> : null}
+      {editing ? <FormPedido pedido={editing} pctSena={pctSena} onGuardar={guardar} onBorrar={borrar} onCerrar={function(){ setEditing(null); }} desk={desk}/> : null}
     </div>
   );
 }
 
-// ═══════════════ DATE PICKER ═══════════════
+// ═══════════ DATE PICKER ═══════════
 function DatePicker(props){
   var opS = useState(false), open = opS[0], setOpen = opS[1];
   var value = props.value;
-
   var pd = null, pm = null, py = 2026;
   if(value){
     var pp = String(value).split("/");
@@ -368,7 +432,6 @@ function DatePicker(props){
   var today = new Date();
   var vmS = useState(pm ? pm-1 : today.getMonth()), viewM = vmS[0], setViewM = vmS[1];
   var vyS = useState(py || today.getFullYear()), viewY = vyS[0], setViewY = vyS[1];
-
   var daysInM = new Date(viewY, viewM+1, 0).getDate();
   var offset = (new Date(viewY, viewM, 1).getDay() + 6) % 7;
 
@@ -437,24 +500,495 @@ function Fld(props){
   );
 }
 
-// ═══════════════ RESPALDO ═══════════════
-function Respaldo(props){
+function Wrap(props){
+  return (
+    <div style={Object.assign({}, S.scroll, props.desk ? {padding:"28px 36px 40px"} : {})}>
+      <div style={props.desk ? {maxWidth:1100,margin:"0 auto"} : {}}>{props.children}</div>
+    </div>
+  );
+}
+
+// ═══════════ INICIO ═══════════
+function Inicio(props){
+  var pedidos = props.pedidos, onIr = props.onIr, desk = props.desk;
+  var mes = new Date().getMonth();
+  var delMes = pedidos.filter(function(p){ return mesIndex(p.fecha) === mes; });
+  var facturado = delMes.reduce(function(a,p){ return a + (Number(p.total)||0); }, 0);
+  var ganado = delMes.reduce(function(a,p){ return a + (Number(p.ganancia)||0); }, 0);
+  var enConf = pedidos.filter(function(p){ return normE(p.estado) === "Confeccion"; }).length;
+  var pend = pedidos.filter(function(p){ return normE(p.estado) === "Pendiente"; }).length;
+  var xEntregar = pedidos.filter(function(p){ return normE(p.estado) !== "Entregado"; });
+
+  return (
+    <Wrap desk={desk}>
+      <p style={{fontSize: desk?26:22,fontWeight:700,color:B.verde,fontFamily:"Georgia,serif",margin:"0 0 2px"}}>Hola, Ro</p>
+      <p style={{color:B.textoSuave,fontSize:13,margin:"0 0 16px"}}>Resumen de {MESES_L[mes]}</p>
+
+      <div style={{display:"grid",gridTemplateColumns: desk ? "repeat(4,1fr)" : "1fr 1fr",gap:10,marginBottom:18}}>
+        <div style={{padding:"16px 18px",borderRadius:16,background:B.verde}}>
+          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.7)",fontWeight:600,marginBottom:4}}>Facturado este mes</div>
+          <div style={{fontSize:19,fontWeight:800,color:B.crema,letterSpacing:-0.5}}>{fmt(facturado)}</div>
+        </div>
+        <div style={{padding:"16px 18px",borderRadius:16,background:B.verdeMed}}>
+          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.7)",fontWeight:600,marginBottom:4}}>Tu ganancia</div>
+          <div style={{fontSize:19,fontWeight:800,color:B.crema,letterSpacing:-0.5}}>{fmt(ganado)}</div>
+        </div>
+        <button onClick={function(){ onIr("pedidos"); }} style={S.miniCard}>
+          <div style={{fontSize:28,fontWeight:800,color:B.verde}}>{enConf}</div>
+          <div style={{fontSize:12,color:B.textoSuave,fontWeight:600}}>En confeccion</div>
+        </button>
+        <button onClick={function(){ onIr("pedidos"); }} style={S.miniCard}>
+          <div style={{fontSize:28,fontWeight:800,color:"#c9a800"}}>{pend}</div>
+          <div style={{fontSize:12,color:B.textoSuave,fontWeight:600}}>Pendientes</div>
+        </button>
+      </div>
+
+      <p style={S.secTitle}>Ganancias por mes</p>
+      <div style={{display:"flex",gap:6,marginBottom:22,flexWrap:"wrap"}}>
+        {props.porMes.map(function(v,i){
+          if(v === 0) return null;
+          var t = tForVal(v, props.minV, props.maxV);
+          var bg = gradColor(t), fg = gradText(t);
+          return (
+            <button key={i} onClick={function(){ onIr("ganancias"); }}
+              style={{flex:"0 0 auto",padding: desk?"11px 16px":"8px 10px",borderRadius:12,background:bg,cursor:"pointer",minWidth: desk?110:52,textAlign:"center",
+                border: i === mes ? "2px solid "+B.verdeOsc : "2px solid transparent"}}>
+              <div style={{fontSize: desk?12:10.5,fontWeight:700,color:fg,opacity:0.85}}>{MESES[i]}</div>
+              <div style={{fontSize: desk?14:11.5,fontWeight:800,color:fg,marginTop:2,letterSpacing:-0.3}}>{fmt(v).replace("$ ","$")}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <p style={S.secTitle}>Por entregar</p>
+      <div style={desk ? {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10} : {}}>
+        {xEntregar.length === 0
+          ? <p style={{color:B.textoSuave,fontSize:14}}>Todo entregado!</p>
+          : xEntregar.map(function(p){
+              var c = E_COLOR[normE(p.estado)];
+              return (
+                <button key={p.id} onClick={function(){ onIr("pedidos"); }} style={S.itemCard}>
+                  <div style={{width:8,height:8,borderRadius:8,background:c.dot,marginRight:10,flexShrink:0}}/>
+                  <div style={{flex:1,textAlign:"left"}}>
+                    <div style={{fontWeight:700,color:B.texto,fontSize:14}}>{p.nombre} <span style={{color:B.textoSuave,fontWeight:400}}>· {p.taller}</span></div>
+                    <div style={{fontSize:12,color:B.textoSuave,marginTop:1}}>{p.pedido || "Sin detalle"}</div>
+                  </div>
+                  <Badge estado={p.estado}/>
+                </button>
+              );
+            })}
+      </div>
+    </Wrap>
+  );
+}
+
+// ═══════════ PEDIDOS ═══════════
+function Pedidos(props){
+  var qS = useState(""), q = qS[0], setQ = qS[1];
+  var fS = useState("Todos"), filtro = fS[0], setFiltro = fS[1];
+  var tS = useState("Todos"), tallerF = tS[0], setTallerF = tS[1];
+  var desk = props.desk;
+
+  var filtrados = props.pedidos.filter(function(p){
+    var txt = (p.nombre + " " + p.pedido + " " + p.direccion + " " + p.taller).toLowerCase();
+    var mQ = txt.indexOf(q.toLowerCase()) > -1;
+    var mF = filtro === "Todos" || (filtro === "Por entregar" ? normE(p.estado) !== "Entregado" : normE(p.estado) === filtro);
+    var mT = tallerF === "Todos" || p.taller === tallerF;
+    return mQ && mF && mT;
+  }).sort(function(a,b){ return parseFecha(b.fecha) - parseFecha(a.fecha); });
+
+  function tarjeta(p){
+    return (
+      <button key={p.id} onClick={function(){ props.onEditar(p); }} style={S.pedCard}>
+        <div style={{flex:1,textAlign:"left"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+            <span style={{fontWeight:700,fontSize:15,color:B.texto}}>{p.nombre}</span>
+            <Badge estado={p.estado}/>
+          </div>
+          <div style={{fontSize:12.5,color:B.textoSuave,marginBottom:3}}>{p.pedido || "Sin detalle"}</div>
+          <div style={{fontSize:11.5,color:B.cremaOsc}}>{p.fecha || "Sin fecha"} · {p.direccion} · {p.taller}</div>
+          <div style={{display:"flex",gap:14,marginTop:6,flexWrap:"wrap"}}>
+            <span style={{fontSize:12.5,color:B.texto}}><b>{fmt(p.total)}</b> <span style={{color:B.textoSuave}}>venta</span></span>
+            <span style={{fontSize:12.5,color:B.verdeMed}}><b>{fmt(p.ganancia)}</b> <span style={{color:B.textoSuave}}>ganas</span></span>
+            {Number(p.resto) > 0 ? <span style={{fontSize:12.5,color:"#b8860b"}}><b>{fmt(p.resto)}</b> <span style={{color:B.textoSuave}}>resta</span></span> : null}
+          </div>
+        </div>
+        <IcoChev size={18} w={2} color={B.cremaOsc}/>
+      </button>
+    );
+  }
+
+  return (
+    <Wrap desk={desk}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <p style={Object.assign({}, S.secTitle, {margin:0})}>Pedidos ({filtrados.length})</p>
+        <button onClick={props.onNuevo} style={S.addBtn}><IcoPlus size={16} w={2.5}/> Nuevo</button>
+      </div>
+
+      <div style={S.searchBox}>
+        <IcoSearch size={16} w={2} color={B.textoSuave}/>
+        <input value={q} onChange={function(e){ setQ(e.target.value); }} placeholder="Buscar cliente, pedido..." style={S.searchInput}/>
+      </div>
+
+      <div style={{display:"flex",gap:7,overflowX:"auto",marginBottom:8,paddingBottom:2}}>
+        {["Todos","Por entregar","Pendiente","Confeccion","Entregado"].map(function(f){
+          return <button key={f} onClick={function(){ setFiltro(f); }}
+            style={Object.assign({}, S.chip, {background: filtro===f ? B.verde : B.cremaMed, color: filtro===f ? B.crema : B.verdeMed})}>{f}</button>;
+        })}
+      </div>
+
+      <div style={{display:"flex",alignItems:"center",gap:7,overflowX:"auto",marginBottom:14,paddingBottom:2}}>
+        <span style={{fontSize:12,color:B.textoSuave,fontWeight:700,whiteSpace:"nowrap"}}>Taller:</span>
+        {["Todos"].concat(TALLERES).map(function(t){
+          return <button key={t} onClick={function(){ setTallerF(t); }}
+            style={Object.assign({}, S.chip, {background: tallerF===t ? B.verdeOsc : B.cremaMed, color: tallerF===t ? B.crema : B.verdeMed})}>{t}</button>;
+        })}
+      </div>
+
+      {desk ? (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {filtrados.map(tarjeta)}
+        </div>
+      ) : (
+        filtrados.map(function(p, idx){
+          var prev = filtrados[idx-1];
+          var pMes = mesIndex(p.fecha);
+          var prevMes = prev ? mesIndex(prev.fecha) : null;
+          return (
+            <div key={p.id}>
+              {(pMes !== null && pMes !== prevMes)
+                ? <div style={{fontSize:12,fontWeight:800,color:B.verdeClaro,textTransform:"uppercase",letterSpacing:1,padding:"8px 2px 4px"}}>{MESES_L[pMes]}</div>
+                : null}
+              {tarjeta(p)}
+            </div>
+          );
+        })
+      )}
+      {filtrados.length === 0 ? <p style={{color:B.textoSuave,fontSize:14}}>No hay pedidos que coincidan.</p> : null}
+    </Wrap>
+  );
+}
+
+// ═══════════ FORM PEDIDO ═══════════
+function FormPedido(props){
+  var init = Object.assign({}, props.pedido);
+  if(!init.costos) init.costos = {};
+  var pS = useState(init), p = pS[0], setP = pS[1];
+  var pcS = useState(props.pctSena || 60), pct = pcS[0], setPct = pcS[1];
+
+  function set(k,v){
+    var np = Object.assign({}, p);
+    np[k] = v;
+    if(k === "total"){
+      var tot = Number(v) || 0;
+      var sena = Math.round(tot * pct / 100);
+      np.senas = sena;
+      np.resto = tot - sena;
+    }
+    if(k === "senas"){
+      np.resto = (Number(p.total)||0) - (Number(v)||0);
+    }
+    setP(np);
+  }
+  function aplicarPct(nuevoPct){
+    setPct(nuevoPct);
+    var tot = Number(p.total) || 0;
+    var sena = Math.round(tot * nuevoPct / 100);
+    var np = Object.assign({}, p);
+    np.senas = sena;
+    np.resto = tot - sena;
+    setP(np);
+  }
+  function setC(k,v){
+    var np = Object.assign({}, p);
+    np.costos = Object.assign({}, p.costos);
+    np.costos[k] = v;
+    setP(np);
+  }
+
+  var sumaP = 0;
+  COSTOS.forEach(function(c){ sumaP += Number(p.costos[c[0]]) || 0; });
+  var restoSug = (Number(p.total)||0) - (Number(p.senas)||0);
+  var senaCalc = Math.round((Number(p.total)||0) * pct / 100);
+
+  return (
+    <div style={S.modalBg} onClick={props.onCerrar}>
+      <div style={Object.assign({}, S.modal, props.desk ? {maxWidth:820,maxHeight:"88vh",borderRadius:20,alignSelf:"center"} : {})}
+        onClick={function(e){ e.stopPropagation(); }}>
+        <div style={S.modalHead}>
+          <span style={{fontWeight:700,fontSize:17,color:B.verde,fontFamily:"Georgia,serif"}}>{props.pedido.nombre ? "Editar pedido" : "Nuevo pedido"}</span>
+          <button onClick={props.onCerrar} style={{background:B.cremaMed,border:"none",borderRadius:10,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:B.verdeMed}}><IcoX size={20} w={2}/></button>
+        </div>
+
+        <div style={S.modalBody}>
+          <div style={S.grid2}>
+            <Fld label="Fecha"><DatePicker value={p.fecha} onChange={function(v){ set("fecha", v); }}/></Fld>
+            <Fld label="Taller">
+              <select style={S.inp} value={p.taller} onChange={function(e){ set("taller", e.target.value); }}>
+                {TALLERES.map(function(t){ return <option key={t}>{t}</option>; })}
+              </select>
+            </Fld>
+          </div>
+          <Fld label="Cliente"><input style={S.inp} value={p.nombre} onChange={function(e){ set("nombre", e.target.value); }}/></Fld>
+          <Fld label="Direccion"><input style={S.inp} value={p.direccion} onChange={function(e){ set("direccion", e.target.value); }}/></Fld>
+          <Fld label="Pedido"><textarea style={Object.assign({}, S.inp, {minHeight:58,resize:"vertical"})} value={p.pedido} onChange={function(e){ set("pedido", e.target.value); }}/></Fld>
+          <Fld label="Telas / materiales"><textarea style={Object.assign({}, S.inp, {minHeight:44,resize:"vertical"})} value={p.telas} onChange={function(e){ set("telas", e.target.value); }}/></Fld>
+
+          <Fld label="Estado">
+            <div style={{display:"flex",gap:8}}>
+              {ESTADOS.map(function(es){
+                var c = E_COLOR[es];
+                var on = normE(p.estado) === es;
+                return (
+                  <button key={es} onClick={function(){ set("estado", es); }}
+                    style={{flex:1,padding:"9px 0",borderRadius:10,fontSize:12.5,cursor:"pointer",
+                      border: "1.5px solid " + (on ? c.dot : B.cremaOsc),
+                      background: on ? c.bg : B.crema,
+                      color: on ? c.fg : B.textoSuave,
+                      fontWeight: on ? 700 : 500}}>{es}</button>
+                );
+              })}
+            </div>
+          </Fld>
+
+          {/* ── DINERO ── */}
+          <div style={{background:B.crema,border:"1px solid "+B.cremaOsc,borderRadius:14,padding:"14px 14px 4px",marginBottom:12}}>
+            <Fld label="Total (lo que le cobras)">
+              <input type="number" style={Object.assign({}, S.inp, {fontSize:17,fontWeight:700})} value={p.total} onChange={function(e){ set("total", e.target.value); }}/>
+            </Fld>
+
+            <div style={{marginBottom:8}}>
+              <span style={{fontSize:12,fontWeight:700,color:B.verdeMed,display:"block",marginBottom:6,textTransform:"uppercase",letterSpacing:0.5}}>Sena que pedis</span>
+              <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+                {[40,50,60,70,100].map(function(v){
+                  return (
+                    <button key={v} type="button" onClick={function(){ aplicarPct(v); }}
+                      style={{padding:"7px 13px",borderRadius:20,border:"none",cursor:"pointer",fontSize:12.5,fontWeight:700,
+                        background: pct===v ? B.verde : B.cremaMed,
+                        color: pct===v ? B.crema : B.verdeMed}}>{v}%</button>
+                  );
+                })}
+                <div style={{display:"flex",alignItems:"center",gap:4,background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:20,padding:"3px 10px"}}>
+                  <input type="number" value={pct} onChange={function(e){ aplicarPct(Number(e.target.value)||0); }}
+                    style={{width:38,border:"none",outline:"none",fontSize:13,fontWeight:700,color:B.verde,textAlign:"center",background:"none"}}/>
+                  <span style={{color:B.textoSuave,fontWeight:700,fontSize:12}}>%</span>
+                </div>
+              </div>
+              <input type="number" style={S.inp} value={p.senas} onChange={function(e){ set("senas", e.target.value); }}/>
+              <div style={{fontSize:11.5,color:B.textoSuave,marginTop:5}}>
+                {pct}% de {fmt(p.total)} = <b style={{color:B.verdeMed}}>{fmt(senaCalc)}</b>
+              </div>
+            </div>
+
+            <Fld label="Resto contra entrega">
+              <input type="number" style={S.inp} value={p.resto} onChange={function(e){ set("resto", e.target.value); }}/>
+              <button type="button" onClick={function(){ set("resto", restoSug); }}
+                style={{marginTop:5,background:B.cremaMed,color:B.verdeMed,border:"1px solid "+B.cremaOsc,borderRadius:8,padding:"6px 8px",fontSize:11.5,fontWeight:700,cursor:"pointer",width:"100%"}}>
+                Recalcular: total - sena = {fmt(restoSug)}
+              </button>
+            </Fld>
+
+            <div style={S.grid2}>
+              <Fld label="Costo total"><input type="number" style={S.inp} value={p.costo} onChange={function(e){ set("costo", e.target.value); }}/></Fld>
+              <Fld label="Tu ganancia"><input type="number" style={Object.assign({}, S.inp, {fontWeight:800,color:B.verdeMed})} value={p.ganancia} onChange={function(e){ set("ganancia", e.target.value); }}/></Fld>
+            </div>
+          </div>
+
+          <details style={{marginTop:4,background:B.crema,borderRadius:12,padding:"12px 14px",border:"1px solid "+B.cremaOsc}}>
+            <summary style={{fontWeight:700,color:B.verdeMed,cursor:"pointer",fontSize:13.5}}>Detalle por proveedor</summary>
+            <div style={Object.assign({}, props.desk ? {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10} : S.grid2, {marginTop:10})}>
+              {COSTOS.map(function(c){
+                return (
+                  <Fld key={c[0]} label={c[1]}>
+                    <input type="number" style={S.inp} value={p.costos[c[0]] || ""} onChange={function(e){ setC(c[0], e.target.value); }} placeholder="0"/>
+                  </Fld>
+                );
+              })}
+            </div>
+            {sumaP > 0 ? (
+              <div style={{marginTop:10,padding:12,background:B.cremaMed,borderRadius:10}}>
+                <div style={{fontSize:13,color:B.textoSuave}}>Suma: <b>{fmt(sumaP)}</b> · Ganancia: <b style={{color:B.verdeMed}}>{fmt((Number(p.total)||0) - sumaP)}</b></div>
+                <button onClick={function(){
+                    var np = Object.assign({}, p);
+                    np.costo = sumaP;
+                    np.ganancia = (Number(p.total)||0) - sumaP;
+                    setP(np);
+                  }}
+                  style={{marginTop:8,width:"100%",background:B.verde,color:B.crema,border:"none",padding:"9px",borderRadius:10,fontWeight:700,cursor:"pointer",fontSize:13}}>Usar este costo y ganancia</button>
+              </div>
+            ) : null}
+          </details>
+        </div>
+
+        <div style={{display:"flex",gap:10,padding:"14px 20px",borderTop:"1px solid "+B.cremaMed}}>
+          {props.pedido.nombre
+            ? <button onClick={function(){ props.onBorrar(props.pedido.id); }}
+                style={{background:"#fde8e8",color:"#c0392b",border:"none",borderRadius:12,width:46,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><IcoTrash size={17} w={2}/></button>
+            : null}
+          <button onClick={function(){ props.onGuardar(p); }}
+            style={{flex:1,background:B.verde,color:B.crema,border:"none",padding:"13px",borderRadius:12,fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"Georgia,serif"}}>Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════ GANANCIAS ═══════════
+function Ganancias(props){
+  var split = props.split, setSplit = props.setSplit, desk = props.desk;
+  var tot = split.ahorros + split.casa + split.personales;
+  var ganTotal = props.pedidos.filter(function(p){ return normE(p.estado) === "Entregado"; })
+                   .reduce(function(a,p){ return a + (Number(p.ganancia)||0); }, 0);
+  var maxMes = Math.max.apply(null, props.porMes.concat([1]));
+  var rep = {
+    ahorros: ganTotal * (split.ahorros/100),
+    casa: ganTotal * (split.casa/100),
+    personales: ganTotal * (split.personales/100)
+  };
+  var cats = [["ahorros","Ahorros","#3b6cb7"],["casa","Casa","#b8860b"],["personales","Personales","#6b3b8a"]];
+
+  return (
+    <Wrap desk={desk}>
+      <p style={{fontSize: desk?26:22,fontWeight:700,color:B.verde,fontFamily:"Georgia,serif",margin:"0 0 14px"}}>Ganancias</p>
+
+      <div style={{background:B.verde,borderRadius:16,padding:"18px 20px",marginBottom:16}}>
+        <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",fontWeight:600}}>Ganancia total del año (entregados)</div>
+        <div style={{fontSize: desk?34:28,fontWeight:800,color:B.crema,letterSpacing:-0.5,marginTop:4}}>{fmt(ganTotal)}</div>
+      </div>
+
+      <p style={S.secTitle}>Reparto</p>
+      <div style={{display: desk?"grid":"flex",gridTemplateColumns: desk?"repeat(3,1fr)":undefined,flexDirection: desk?undefined:"column",gap:10,marginBottom:8}}>
+        {cats.map(function(c){
+          var k = c[0], label = c[1], color = c[2];
+          return (
+            <div key={k} style={{display:"flex",alignItems:"center",padding:"12px 14px",background:B.crema,border:"1px solid "+B.cremaOsc,borderRadius:14}}>
+              <div style={{width:8,height:36,borderRadius:6,background:color,marginRight:12}}/>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,color:B.texto,fontSize:13}}>{label}</div>
+                <div style={{fontSize:17,fontWeight:800,color:color}}>{fmt(rep[k])}</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                <input type="number" value={split[k]} onChange={function(e){
+                    var ns = Object.assign({}, split);
+                    ns[k] = Number(e.target.value);
+                    setSplit(ns);
+                  }}
+                  style={{width:46,textAlign:"center",border:"1px solid "+B.cremaOsc,borderRadius:8,padding:"5px 3px",fontSize:14,fontWeight:700,color:B.verde,background:B.crema}}/>
+                <span style={{color:B.textoSuave,fontWeight:700}}>%</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {tot !== 100 ? <p style={{color:"#c0392b",fontSize:13,marginBottom:10}}>Los porcentajes suman {tot}% (deben ser 100%)</p> : null}
+
+      <p style={S.secTitle}>Mes a mes</p>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {MESES.map(function(mes,i){
+          var v = props.porMes[i];
+          if(v === 0) return null;
+          var t = tForVal(v, props.minV, props.maxV);
+          var bg = gradColor(t), fg = gradText(t);
+          var isMax = (v === props.maxV);
+          var isMin = (v === props.minV && props.minV !== props.maxV);
+          return (
+            <div key={i} style={{display:"flex",alignItems:"center",gap:12,borderRadius:14,padding:"13px 18px",background:bg,
+              border: "2px solid " + (isMax ? B.verdeOsc : (isMin ? "rgba(255,255,255,0.5)" : "transparent"))}}>
+              <div style={{width:52,fontWeight:800,color:fg,fontSize:14}}>{mes}</div>
+              <div style={{flex:1,height:7,background:"rgba(255,255,255,0.25)",borderRadius:8,overflow:"hidden"}}>
+                <div style={{width:(v/maxMes*100)+"%",height:"100%",background:"rgba(255,255,255,0.5)",borderRadius:8}}/>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                {isMax ? <span style={{fontSize:10,fontWeight:800,background:"rgba(255,255,255,0.3)",color:fg,padding:"2px 7px",borderRadius:10}}>MAX</span> : null}
+                {isMin ? <span style={{fontSize:10,fontWeight:800,background:"rgba(0,0,0,0.15)",color:fg,padding:"2px 7px",borderRadius:10}}>MIN</span> : null}
+                <div style={{minWidth:135,textAlign:"right",fontWeight:800,color:fg,fontSize:15}}>{fmt(v)}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Wrap>
+  );
+}
+
+// ═══════════ CALCULADORA ═══════════
+function CalcPrecio(props){
+  var dS = useState({material:"",combustible:"",otros:"",hM:1,hI:1,hC:1,hora:5000,margen:40});
+  var d = dS[0], setD = dS[1];
+  function set(k,v){ var nd = Object.assign({}, d); nd[k] = v; setD(nd); }
+  function n(k){ return Number(d[k]) || 0; }
+  var costoT = (n("hM") + n("hI") + n("hC")) * n("hora");
+  var costoR = n("material") + n("combustible") + n("otros") + costoT;
+  var precio = costoR * (1 + n("margen")/100);
+  var gan = precio - costoR;
+
+  return (
+    <Wrap desk={props.desk}>
+      <p style={{fontSize: props.desk?26:22,fontWeight:700,color:B.verde,fontFamily:"Georgia,serif",margin:"0 0 4px"}}>Calculadora</p>
+      <p style={{color:B.textoSuave,fontSize:13,margin:"0 0 16px"}}>Para fundas, cortinas y decoracion</p>
+
+      <div style={props.desk ? {display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"} : {}}>
+        <div style={{background:B.crema,border:"1px solid "+B.cremaOsc,borderRadius:16,padding:"16px 16px 4px",marginBottom:14}}>
+          <Fld label="Costo del material / produccion"><input type="number" style={S.inp} value={d.material} onChange={function(e){ set("material", e.target.value); }} placeholder="0"/></Fld>
+          <Fld label="Combustible"><input type="number" style={S.inp} value={d.combustible} onChange={function(e){ set("combustible", e.target.value); }} placeholder="0"/></Fld>
+          <Fld label="Otros gastos"><input type="number" style={S.inp} value={d.otros} onChange={function(e){ set("otros", e.target.value); }} placeholder="0"/></Fld>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            <Fld label="Hs medicion"><input type="number" style={S.inp} value={d.hM} onChange={function(e){ set("hM", e.target.value); }}/></Fld>
+            <Fld label="Hs instalac."><input type="number" style={S.inp} value={d.hI} onChange={function(e){ set("hI", e.target.value); }}/></Fld>
+            <Fld label="Hs coord."><input type="number" style={S.inp} value={d.hC} onChange={function(e){ set("hC", e.target.value); }}/></Fld>
+          </div>
+          <div style={S.grid2}>
+            <Fld label="Valor tu hora"><input type="number" style={S.inp} value={d.hora} onChange={function(e){ set("hora", e.target.value); }}/></Fld>
+            <Fld label="Margen (%)"><input type="number" style={S.inp} value={d.margen} onChange={function(e){ set("margen", e.target.value); }}/></Fld>
+          </div>
+        </div>
+
+        <div>
+          <div style={{background:B.verde,borderRadius:16,padding:"16px 18px",marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.15)"}}>
+              <span style={{color:"rgba(255,255,255,0.75)",fontSize:13}}>Costo del tiempo</span>
+              <span style={{color:B.crema,fontWeight:600,fontSize:13}}>{fmt(costoT)}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.15)"}}>
+              <span style={{color:"rgba(255,255,255,0.75)",fontSize:13,fontWeight:700}}>Costo total real</span>
+              <span style={{color:B.crema,fontWeight:800,fontSize:15}}>{fmt(costoR)}</span>
+            </div>
+            <div style={{marginTop:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{color:"rgba(255,255,255,0.8)",fontSize:14,fontWeight:600}}>Precio sugerido</span>
+                <span style={{color:B.crema,fontWeight:800,fontSize:22,letterSpacing:-0.5}}>{fmt(precio)}</span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between"}}>
+                <span style={{color:"rgba(255,255,255,0.8)",fontSize:14,fontWeight:600}}>Tu ganancia</span>
+                <span style={{color:"#b8f0a0",fontWeight:800,fontSize:18}}>{fmt(gan)}</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={function(){ props.onCrearPedido({total:Math.round(precio), costo:Math.round(costoR), ganancia:Math.round(gan)}); }}
+            style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",background:B.crema,color:B.verde,border:"2px solid "+B.verde,padding:"13px",borderRadius:14,fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"Georgia,serif"}}>
+            <IcoPlus size={17} w={2.5}/> Crear pedido con este precio
+          </button>
+        </div>
+      </div>
+    </Wrap>
+  );
+}
+
+// ═══════════ CONFIGURACION ═══════════
+function Config(props){
+  var pedidos = props.pedidos, setPedidos = props.setPedidos, split = props.split, desk = props.desk;
   var msS = useState(""), msg = msS[0], setMsg = msS[1];
+  var reS = useState(""), res = reS[0], setRes = reS[1];
   var fileRef = useRef(null);
-  var pedidos = props.pedidos, setPedidos = props.setPedidos, split = props.split;
 
   function bajar(contenido, nombre, tipo){
     var blob = new Blob([contenido], {type:tipo});
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
-    a.href = url;
-    a.download = nombre;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
   }
-
   function hoy(){
     var d = new Date();
     var m = String(d.getMonth()+1); if(m.length < 2) m = "0"+m;
@@ -475,8 +1009,7 @@ function Respaldo(props){
 
     var ordenados = pedidos.slice().sort(function(a,b){ return parseFecha(a.fecha) - parseFecha(b.fecha); });
 
-    // Hoja ENTREGAS
-    var colsE = ["FECHA","NOMBRE","DIRECCION","PEDIDO","TALLER","TELAS","SENAS","TOTAL","RESTO","GANANCIA","COSTO","ESTADO"];
+    var colsE = ["FECHA","NOMBRE","DIRECCION","PEDIDO","TALLER","TELAS COMPRAR","SENAS","TOTAL","RESTO CONTRA ENTREGA","GANANCIAS","COSTO","ESTADO"];
     COSTOS.forEach(function(c){ colsE.push(c[1].toUpperCase()); });
     var filasE = ordenados.map(function(p){
       var celdas = [
@@ -492,7 +1025,6 @@ function Respaldo(props){
       return fila(celdas);
     });
 
-    // Hoja COBROS
     var pA = split.ahorros/100, pC = split.casa/100, pP = split.personales/100;
     var colsC = ["CLIENTE","FECHA DE COBRO","GANANCIA","AHORROS "+split.ahorros+"%","CASA "+split.casa+"%","PERSONALES "+split.personales+"%","ESTADO"];
     var totalGan = 0;
@@ -552,510 +1084,126 @@ function Respaldo(props){
   }
 
   function vaciar(){
-    if(!confirm("Vas a borrar los " + pedidos.length + " pedidos cargados para arrancar 2026 desde cero.\n\nBajaste el Excel antes? Si no, cancela y baja el respaldo primero.")) return;
-    if(!confirm("Ultima confirmacion: esto no se puede deshacer.\n\nBorrar todo y empezar 2026?")) return;
+    if(!confirm("Vas a borrar los " + pedidos.length + " pedidos cargados.\n\nBajaste el Excel antes? Si no, cancela y baja el respaldo primero.")) return;
+    if(!confirm("Ultima confirmacion: esto no se puede deshacer.\n\nBorrar todo?")) return;
     setPedidos([]);
-    setMsg("Listo. Arrancas 2026 desde cero.");
+    setMsg("Listo. Empezas desde cero.");
   }
-
-  var btn = {flex:1,background:B.crema,color:B.verde,border:"1.5px solid "+B.verde,padding:"10px 8px",borderRadius:10,fontWeight:700,fontSize:12.5,cursor:"pointer"};
-
-  return (
-    <div style={{background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:14,padding:14,marginBottom:12}}>
-      <div style={{fontSize:12,fontWeight:800,color:B.verde,textTransform:"uppercase",letterSpacing:0.8,marginBottom:10}}>Respaldo de tus datos</div>
-      <div style={{display:"flex",gap:8,marginBottom:8}}>
-        <button onClick={bajarExcel} style={btn}>Bajar Excel</button>
-        <button onClick={bajarRespaldo} style={btn}>Bajar respaldo</button>
-      </div>
-      <button onClick={function(){ if(fileRef.current) fileRef.current.click(); }}
-        style={Object.assign({}, btn, {width:"100%",background:B.cremaMed,border:"1px solid "+B.cremaOsc,color:B.verdeMed})}>Restaurar desde respaldo</button>
-      <input ref={fileRef} type="file" accept=".json,application/json" onChange={restaurar} style={{display:"none"}}/>
-      <button onClick={vaciar}
-        style={Object.assign({}, btn, {width:"100%",marginTop:8,background:"#fdf0f0",border:"1px solid #e8c4c4",color:"#a03028"})}>Empezar 2026 desde cero</button>
-      {msg ? <div style={{fontSize:11.5,color:B.verdeMed,marginTop:9,fontWeight:600}}>{msg}</div> : null}
-    </div>
-  );
-}
-
-// ═══════════════ DIAGNOSTICO ═══════════════
-function Diagnostico(props){
-  var reS = useState(""), res = reS[0], setRes = reS[1];
-  var veS = useState(false), ver = veS[0], setVer = veS[1];
 
   function probarLectura(){
-    setRes("VERSION " + VERSION + "\nConsultando el Sheet...");
+    setRes("Consultando el Sheet...");
     jsonpGet().then(function(obj){
       var n = (obj && obj.pedidos) ? obj.pedidos.length : 0;
-      setRes("VERSION " + VERSION + "\nLECTURA OK\nPedidos en el Sheet: " + n + "\nContenido: " + JSON.stringify(obj).slice(0,150));
+      setRes(VERSION + " · LECTURA OK\nPedidos en el Sheet: " + n);
     }).catch(function(err){
-      setRes("VERSION " + VERSION + "\nERROR DE LECTURA\n" + (err && err.message ? err.message : "desconocido"));
+      setRes(VERSION + " · ERROR DE LECTURA\n" + (err && err.message ? err.message : "desconocido"));
     });
   }
-
   function probarEscritura(){
-    setRes("VERSION " + VERSION + "\nEnviando " + props.pedidos.length + " pedidos...");
-    formPost({pedidos:props.pedidos, split:props.split}).then(function(){
-      setRes("VERSION " + VERSION + "\nEnvio despachado. Esperando 3 seg...");
+    setRes("Enviando " + pedidos.length + " pedidos...");
+    formPost({pedidos:pedidos, split:split}).then(function(){
       return new Promise(function(r){ setTimeout(r, 3000); });
     }).then(function(){
       return jsonpGet();
     }).then(function(obj){
       var n = (obj && obj.pedidos) ? obj.pedidos.length : 0;
-      setRes("VERSION " + VERSION + "\nEnviados: " + props.pedidos.length + "\nAhora en el Sheet: " + n +
-        (n === props.pedidos.length ? "\n\nESCRITURA OK" : "\n\nLA ESCRITURA NO LLEGO"));
+      setRes(VERSION + " · Enviados: " + pedidos.length + "\nAhora en el Sheet: " + n +
+        (n === pedidos.length ? "\n\nESCRITURA OK" : "\n\nLA ESCRITURA NO LLEGO"));
     }).catch(function(err){
-      setRes("VERSION " + VERSION + "\nERROR AL ESCRIBIR\n" + (err && err.message ? err.message : "desconocido"));
+      setRes(VERSION + " · ERROR AL ESCRIBIR\n" + (err && err.message ? err.message : "desconocido"));
     });
   }
 
-  return (
-    <div style={{marginBottom:18}}>
-      <button onClick={function(){ setVer(!ver); }}
-        style={{background:"none",border:"none",color:B.textoSuave,fontSize:11.5,fontWeight:700,cursor:"pointer",padding:"2px 0",textDecoration:"underline"}}>
-        {ver ? "Ocultar diagnostico" : "Ver diagnostico de sincronizacion (" + VERSION + ")"}
-      </button>
-      {ver ? (
-        <div style={{background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:14,padding:14,marginTop:8}}>
-          <button onClick={probarLectura} style={{width:"100%",background:B.verde,color:B.crema,border:"none",padding:"10px",borderRadius:10,fontWeight:700,fontSize:13,cursor:"pointer"}}>Probar lectura</button>
-          <button onClick={probarEscritura} style={{width:"100%",marginTop:8,background:B.verdeMed,color:B.crema,border:"none",padding:"10px",borderRadius:10,fontWeight:700,fontSize:13,cursor:"pointer"}}>Probar escritura</button>
-          {res ? <pre style={{whiteSpace:"pre-wrap",wordBreak:"break-all",fontSize:11,color:B.texto,background:B.crema,padding:10,borderRadius:8,marginTop:10,marginBottom:0,fontFamily:"monospace"}}>{res}</pre> : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-// ═══════════════ INICIO ═══════════════
-function Inicio(props){
-  var pedidos = props.pedidos, onIr = props.onIr;
-  var mes = new Date().getMonth();
-  var delMes = pedidos.filter(function(p){ return mesIndex(p.fecha) === mes; });
-  var facturado = delMes.reduce(function(a,p){ return a + (Number(p.total)||0); }, 0);
-  var ganado = delMes.reduce(function(a,p){ return a + (Number(p.ganancia)||0); }, 0);
-  var enConf = pedidos.filter(function(p){ return normE(p.estado) === "Confeccion"; }).length;
-  var pend = pedidos.filter(function(p){ return normE(p.estado) === "Pendiente"; }).length;
-  var xEntregar = pedidos.filter(function(p){ return normE(p.estado) !== "Entregado"; });
+  var btn = {flex:1,background:B.crema,color:B.verde,border:"1.5px solid "+B.verde,padding:"11px 8px",borderRadius:10,fontWeight:700,fontSize:13,cursor:"pointer"};
+  var card = {background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:16,padding:16,marginBottom:14};
 
   return (
-    <div style={S.scroll}>
-      <p style={{fontSize:22,fontWeight:700,color:B.verde,fontFamily:"Georgia,serif",margin:"0 0 2px"}}>Hola, Ro</p>
-      <p style={{color:B.textoSuave,fontSize:13,margin:"0 0 16px"}}>Resumen de {MESES_L[mes]}</p>
+    <Wrap desk={desk}>
+      <p style={{fontSize: desk?26:22,fontWeight:700,color:B.verde,fontFamily:"Georgia,serif",margin:"0 0 16px"}}>Configuracion</p>
 
-      <div style={{display:"flex",gap:10,marginBottom:10}}>
-        <div style={{flex:1,padding:"14px 16px",borderRadius:16,background:B.verde}}>
-          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.7)",fontWeight:600,marginBottom:4}}>Facturado este mes</div>
-          <div style={{fontSize:18,fontWeight:800,color:B.crema,letterSpacing:-0.5}}>{fmt(facturado)}</div>
-        </div>
-        <div style={{flex:1,padding:"14px 16px",borderRadius:16,background:B.verdeMed}}>
-          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.7)",fontWeight:600,marginBottom:4}}>Tu ganancia</div>
-          <div style={{fontSize:18,fontWeight:800,color:B.crema,letterSpacing:-0.5}}>{fmt(ganado)}</div>
-        </div>
-      </div>
+      <div style={desk ? {display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,alignItems:"start"} : {}}>
 
-      <div style={{display:"flex",gap:10,marginBottom:18}}>
-        <button onClick={function(){ onIr("pedidos"); }} style={S.miniCard}>
-          <div style={{fontSize:28,fontWeight:800,color:B.verde}}>{enConf}</div>
-          <div style={{fontSize:12,color:B.textoSuave,fontWeight:600}}>En confeccion</div>
-        </button>
-        <button onClick={function(){ onIr("pedidos"); }} style={S.miniCard}>
-          <div style={{fontSize:28,fontWeight:800,color:"#c9a800"}}>{pend}</div>
-          <div style={{fontSize:12,color:B.textoSuave,fontWeight:600}}>Pendientes</div>
-        </button>
-      </div>
-
-      <p style={S.secTitle}>Ganancias por mes</p>
-      <div style={{display:"flex",gap:5,marginBottom:20,flexWrap:"wrap"}}>
-        {props.porMes.map(function(v,i){
-          if(v === 0) return null;
-          var t = tForVal(v, props.minV, props.maxV);
-          var bg = gradColor(t), fg = gradText(t);
-          return (
-            <button key={i} onClick={function(){ onIr("ganancias"); }}
-              style={{flex:"0 0 auto",padding:"8px 10px",borderRadius:12,background:bg,cursor:"pointer",minWidth:52,textAlign:"center",
-                border: i === mes ? "2px solid "+B.verdeOsc : "2px solid transparent"}}>
-              <div style={{fontSize:10.5,fontWeight:700,color:fg,opacity:0.85}}>{MESES[i]}</div>
-              <div style={{fontSize:11.5,fontWeight:800,color:fg,marginTop:2,letterSpacing:-0.3}}>{fmt(v).replace("$ ","$")}</div>
-            </button>
-          );
-        })}
-      </div>
-
-      <Respaldo pedidos={pedidos} setPedidos={props.setPedidos} split={props.split}/>
-      <Diagnostico pedidos={pedidos} split={props.split}/>
-
-      <p style={S.secTitle}>Por entregar</p>
-      {xEntregar.length === 0
-        ? <p style={{color:B.textoSuave,fontSize:14}}>Todo entregado!</p>
-        : xEntregar.map(function(p){
-            var c = E_COLOR[normE(p.estado)];
-            return (
-              <button key={p.id} onClick={function(){ onIr("pedidos"); }} style={S.itemCard}>
-                <div style={{width:8,height:8,borderRadius:8,background:c.dot,marginRight:10,flexShrink:0}}/>
-                <div style={{flex:1,textAlign:"left"}}>
-                  <div style={{fontWeight:700,color:B.texto,fontSize:14}}>{p.nombre} <span style={{color:B.textoSuave,fontWeight:400}}>· {p.taller}</span></div>
-                  <div style={{fontSize:12,color:B.textoSuave,marginTop:1}}>{p.pedido}</div>
-                </div>
-                <Badge estado={p.estado}/>
-              </button>
-            );
-          })}
-    </div>
-  );
-}
-
-// ═══════════════ PEDIDOS ═══════════════
-function Pedidos(props){
-  var qS = useState(""), q = qS[0], setQ = qS[1];
-  var fS = useState("Todos"), filtro = fS[0], setFiltro = fS[1];
-  var tS = useState("Todos"), tallerF = tS[0], setTallerF = tS[1];
-
-  var filtrados = props.pedidos.filter(function(p){
-    var txt = (p.nombre + " " + p.pedido + " " + p.direccion + " " + p.taller).toLowerCase();
-    var mQ = txt.indexOf(q.toLowerCase()) > -1;
-    var mF = filtro === "Todos" || (filtro === "Por entregar" ? normE(p.estado) !== "Entregado" : normE(p.estado) === filtro);
-    var mT = tallerF === "Todos" || p.taller === tallerF;
-    return mQ && mF && mT;
-  }).sort(function(a,b){ return parseFecha(b.fecha) - parseFecha(a.fecha); });
-
-  return (
-    <div style={S.scroll}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <p style={Object.assign({}, S.secTitle, {margin:0})}>Pedidos</p>
-        <button onClick={props.onNuevo} style={S.addBtn}><IcoPlus size={16} w={2.5}/> Nuevo</button>
-      </div>
-
-      <div style={S.searchBox}>
-        <IcoSearch size={16} w={2} color={B.textoSuave}/>
-        <input value={q} onChange={function(e){ setQ(e.target.value); }} placeholder="Buscar cliente, pedido..." style={S.searchInput}/>
-      </div>
-
-      <div style={{display:"flex",gap:7,overflowX:"auto",marginBottom:8,paddingBottom:2}}>
-        {["Todos","Por entregar","Pendiente","Confeccion","Entregado"].map(function(f){
-          return <button key={f} onClick={function(){ setFiltro(f); }}
-            style={Object.assign({}, S.chip, {background: filtro===f ? B.verde : B.cremaMed, color: filtro===f ? B.crema : B.verdeMed})}>{f}</button>;
-        })}
-      </div>
-
-      <div style={{display:"flex",alignItems:"center",gap:7,overflowX:"auto",marginBottom:14,paddingBottom:2}}>
-        <span style={{fontSize:12,color:B.textoSuave,fontWeight:700,whiteSpace:"nowrap"}}>Taller:</span>
-        {["Todos"].concat(TALLERES).map(function(t){
-          return <button key={t} onClick={function(){ setTallerF(t); }}
-            style={Object.assign({}, S.chip, {background: tallerF===t ? B.verdeOsc : B.cremaMed, color: tallerF===t ? B.crema : B.verdeMed})}>{t}</button>;
-        })}
-      </div>
-
-      {filtrados.map(function(p, idx){
-        var prev = filtrados[idx-1];
-        var pMes = mesIndex(p.fecha);
-        var prevMes = prev ? mesIndex(prev.fecha) : null;
-        return (
-          <div key={p.id}>
-            {(pMes !== null && pMes !== prevMes)
-              ? <div style={{fontSize:12,fontWeight:800,color:B.verdeClaro,textTransform:"uppercase",letterSpacing:1,padding:"8px 2px 4px"}}>{MESES_L[pMes]}</div>
-              : null}
-            <button onClick={function(){ props.onEditar(p); }} style={S.pedCard}>
-              <div style={{flex:1,textAlign:"left"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
-                  <span style={{fontWeight:700,fontSize:15,color:B.texto}}>{p.nombre}</span>
-                  <Badge estado={p.estado}/>
-                </div>
-                <div style={{fontSize:12.5,color:B.textoSuave,marginBottom:3}}>{p.pedido}</div>
-                <div style={{fontSize:11.5,color:B.cremaOsc}}>{p.fecha} · {p.direccion} · {p.taller}</div>
-                <div style={{display:"flex",gap:14,marginTop:6}}>
-                  <span style={{fontSize:12.5,color:B.texto}}><b>{fmt(p.total)}</b> <span style={{color:B.textoSuave}}>venta</span></span>
-                  <span style={{fontSize:12.5,color:B.verdeMed}}><b>{fmt(p.ganancia)}</b> <span style={{color:B.textoSuave}}>ganas</span></span>
-                </div>
-              </div>
-              <IcoChev size={18} w={2} color={B.cremaOsc}/>
-            </button>
-          </div>
-        );
-      })}
-      {filtrados.length === 0 ? <p style={{color:B.textoSuave,fontSize:14}}>No hay pedidos que coincidan.</p> : null}
-    </div>
-  );
-}
-
-// ═══════════════ FORM PEDIDO ═══════════════
-function FormPedido(props){
-  var init = Object.assign({}, props.pedido);
-  if(!init.costos) init.costos = {};
-  var pS = useState(init), p = pS[0], setP = pS[1];
-
-  function set(k,v){
-    var np = Object.assign({}, p);
-    np[k] = v;
-    setP(np);
-  }
-  function setC(k,v){
-    var np = Object.assign({}, p);
-    np.costos = Object.assign({}, p.costos);
-    np.costos[k] = v;
-    setP(np);
-  }
-
-  var sumaP = 0;
-  COSTOS.forEach(function(c){ sumaP += Number(p.costos[c[0]]) || 0; });
-  var restoSug = (Number(p.total)||0) - (Number(p.senas)||0);
-
-  return (
-    <div style={S.modalBg} onClick={props.onCerrar}>
-      <div style={S.modal} onClick={function(e){ e.stopPropagation(); }}>
-        <div style={S.modalHead}>
-          <span style={{fontWeight:700,fontSize:17,color:B.verde,fontFamily:"Georgia,serif"}}>{props.pedido.nombre ? "Editar pedido" : "Nuevo pedido"}</span>
-          <button onClick={props.onCerrar} style={{background:B.cremaMed,border:"none",borderRadius:10,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:B.verdeMed}}><IcoX size={20} w={2}/></button>
-        </div>
-
-        <div style={S.modalBody}>
-          <div style={S.grid2}>
-            <Fld label="Fecha"><DatePicker value={p.fecha} onChange={function(v){ set("fecha", v); }}/></Fld>
-            <Fld label="Taller">
-              <select style={S.inp} value={p.taller} onChange={function(e){ set("taller", e.target.value); }}>
-                {TALLERES.map(function(t){ return <option key={t}>{t}</option>; })}
-              </select>
-            </Fld>
-          </div>
-          <Fld label="Cliente"><input style={S.inp} value={p.nombre} onChange={function(e){ set("nombre", e.target.value); }}/></Fld>
-          <Fld label="Direccion"><input style={S.inp} value={p.direccion} onChange={function(e){ set("direccion", e.target.value); }}/></Fld>
-          <Fld label="Pedido"><textarea style={Object.assign({}, S.inp, {minHeight:58,resize:"vertical"})} value={p.pedido} onChange={function(e){ set("pedido", e.target.value); }}/></Fld>
-          <Fld label="Telas / materiales"><textarea style={Object.assign({}, S.inp, {minHeight:44,resize:"vertical"})} value={p.telas} onChange={function(e){ set("telas", e.target.value); }}/></Fld>
-
-          <Fld label="Estado">
-            <div style={{display:"flex",gap:8}}>
-              {ESTADOS.map(function(es){
-                var c = E_COLOR[es];
-                var on = normE(p.estado) === es;
-                return (
-                  <button key={es} onClick={function(){ set("estado", es); }}
-                    style={{flex:1,padding:"8px 0",borderRadius:10,fontSize:12.5,cursor:"pointer",
-                      border: "1.5px solid " + (on ? c.dot : B.cremaOsc),
-                      background: on ? c.bg : B.crema,
-                      color: on ? c.fg : B.textoSuave,
-                      fontWeight: on ? 700 : 500}}>{es}</button>
-                );
-              })}
+        <div style={card}>
+          <div style={S.cardTitle}>Sena por defecto</div>
+          <p style={{fontSize:12.5,color:B.textoSuave,margin:"0 0 10px"}}>Porcentaje que se calcula solo al cargar el total de un pedido.</p>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {[40,50,60,70,100].map(function(v){
+              return (
+                <button key={v} onClick={function(){ props.setPctSena(v); }}
+                  style={{padding:"9px 16px",borderRadius:20,border:"none",cursor:"pointer",fontSize:13,fontWeight:700,
+                    background: props.pctSena===v ? B.verde : B.cremaMed,
+                    color: props.pctSena===v ? B.crema : B.verdeMed}}>{v}%</button>
+              );
+            })}
+            <div style={{display:"flex",alignItems:"center",gap:4,background:B.crema,border:"1px solid "+B.cremaOsc,borderRadius:20,padding:"4px 12px"}}>
+              <input type="number" value={props.pctSena} onChange={function(e){ props.setPctSena(Number(e.target.value)||0); }}
+                style={{width:42,border:"none",outline:"none",fontSize:14,fontWeight:700,color:B.verde,textAlign:"center",background:"none"}}/>
+              <span style={{color:B.textoSuave,fontWeight:700,fontSize:13}}>%</span>
             </div>
-          </Fld>
-
-          <div style={S.grid2}>
-            <Fld label="Total (venta)"><input type="number" style={S.inp} value={p.total} onChange={function(e){ set("total", e.target.value); }}/></Fld>
-            <Fld label="Sena"><input type="number" style={S.inp} value={p.senas} onChange={function(e){ set("senas", e.target.value); }}/></Fld>
           </div>
-
-          <div style={S.grid2}>
-            <Fld label="Resto / contra entrega">
-              <input type="number" style={S.inp} value={p.resto} onChange={function(e){ set("resto", e.target.value); }}/>
-              <button type="button" onClick={function(){ set("resto", restoSug); }}
-                style={{marginTop:5,background:B.cremaMed,color:B.verdeMed,border:"1px solid "+B.cremaOsc,borderRadius:8,padding:"6px 8px",fontSize:11.5,fontWeight:700,cursor:"pointer",width:"100%"}}>
-                Calcular: total - sena = {fmt(restoSug)}
-              </button>
-            </Fld>
-            <Fld label="Costo total"><input type="number" style={S.inp} value={p.costo} onChange={function(e){ set("costo", e.target.value); }}/></Fld>
-          </div>
-
-          <Fld label="Tu ganancia"><input type="number" style={Object.assign({}, S.inp, {fontWeight:800,color:B.verdeMed})} value={p.ganancia} onChange={function(e){ set("ganancia", e.target.value); }}/></Fld>
-
-          <details style={{marginTop:8,background:B.crema,borderRadius:12,padding:"12px 14px",border:"1px solid "+B.cremaOsc}}>
-            <summary style={{fontWeight:700,color:B.verdeMed,cursor:"pointer",fontSize:13.5}}>Detalle por proveedor</summary>
-            <div style={Object.assign({}, S.grid2, {marginTop:10})}>
-              {COSTOS.map(function(c){
-                return (
-                  <Fld key={c[0]} label={c[1]}>
-                    <input type="number" style={S.inp} value={p.costos[c[0]] || ""} onChange={function(e){ setC(c[0], e.target.value); }} placeholder="0"/>
-                  </Fld>
-                );
-              })}
-            </div>
-            {sumaP > 0 ? (
-              <div style={{marginTop:10,padding:12,background:B.cremaMed,borderRadius:10}}>
-                <div style={{fontSize:13,color:B.textoSuave}}>Suma: <b>{fmt(sumaP)}</b> · Ganancia: <b style={{color:B.verdeMed}}>{fmt((Number(p.total)||0) - sumaP)}</b></div>
-                <button onClick={function(){
-                    var np = Object.assign({}, p);
-                    np.costo = sumaP;
-                    np.ganancia = (Number(p.total)||0) - sumaP;
-                    setP(np);
-                  }}
-                  style={{marginTop:8,width:"100%",background:B.verde,color:B.crema,border:"none",padding:"9px",borderRadius:10,fontWeight:700,cursor:"pointer",fontSize:13}}>Usar este costo y ganancia</button>
-              </div>
-            ) : null}
-          </details>
         </div>
 
-        <div style={{display:"flex",gap:10,padding:"14px 20px",borderTop:"1px solid "+B.cremaMed}}>
-          {props.pedido.nombre
-            ? <button onClick={function(){ props.onBorrar(props.pedido.id); }}
-                style={{background:"#fde8e8",color:"#c0392b",border:"none",borderRadius:12,width:46,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><IcoTrash size={17} w={2}/></button>
-            : null}
-          <button onClick={function(){ props.onGuardar(p); }}
-            style={{flex:1,background:B.verde,color:B.crema,border:"none",padding:"13px",borderRadius:12,fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"Georgia,serif"}}>Guardar</button>
+        <div style={card}>
+          <div style={S.cardTitle}>Vista</div>
+          <p style={{fontSize:12.5,color:B.textoSuave,margin:"0 0 10px"}}>Cambia entre pantalla ancha (computadora) y angosta (tablet o celular).</p>
+          <button onClick={props.toggleDesk}
+            style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,width:"100%",background:B.verde,color:B.crema,border:"none",borderRadius:10,padding:"12px",fontWeight:700,fontSize:13.5,cursor:"pointer"}}>
+            {desk ? <IcoTablet size={16} w={2}/> : <IcoMonitor size={16} w={2}/>}
+            {desk ? "Cambiar a vista tablet" : "Cambiar a vista computadora"}
+          </button>
         </div>
+
+        <div style={card}>
+          <div style={S.cardTitle}>Respaldo de tus datos</div>
+          <div style={{display:"flex",gap:8,marginBottom:8}}>
+            <button onClick={bajarExcel} style={btn}>Bajar Excel</button>
+            <button onClick={bajarRespaldo} style={btn}>Bajar respaldo</button>
+          </div>
+          <button onClick={function(){ if(fileRef.current) fileRef.current.click(); }}
+            style={Object.assign({}, btn, {width:"100%",background:B.cremaMed,border:"1px solid "+B.cremaOsc,color:B.verdeMed})}>Restaurar desde respaldo</button>
+          <input ref={fileRef} type="file" accept=".json,application/json" onChange={restaurar} style={{display:"none"}}/>
+          <button onClick={vaciar}
+            style={Object.assign({}, btn, {width:"100%",marginTop:8,background:"#fdf0f0",border:"1px solid #e8c4c4",color:"#a03028"})}>Borrar todos los pedidos</button>
+          {msg ? <div style={{fontSize:11.5,color:B.verdeMed,marginTop:10,fontWeight:600}}>{msg}</div> : null}
+        </div>
+
+        <div style={card}>
+          <div style={S.cardTitle}>Sincronizacion ({VERSION})</div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={probarLectura} style={Object.assign({}, btn, {background:B.verde,color:B.crema,border:"none"})}>Probar lectura</button>
+            <button onClick={probarEscritura} style={Object.assign({}, btn, {background:B.verdeMed,color:B.crema,border:"none"})}>Probar escritura</button>
+          </div>
+          {res ? <pre style={{whiteSpace:"pre-wrap",wordBreak:"break-all",fontSize:11.5,color:B.texto,background:B.crema,padding:11,borderRadius:8,marginTop:10,marginBottom:0,fontFamily:"monospace"}}>{res}</pre> : null}
+        </div>
+
       </div>
-    </div>
+    </Wrap>
   );
 }
 
-// ═══════════════ GANANCIAS ═══════════════
-function Ganancias(props){
-  var split = props.split, setSplit = props.setSplit;
-  var tot = split.ahorros + split.casa + split.personales;
-  var ganTotal = props.pedidos.filter(function(p){ return normE(p.estado) === "Entregado"; })
-                   .reduce(function(a,p){ return a + (Number(p.ganancia)||0); }, 0);
-  var maxMes = Math.max.apply(null, props.porMes.concat([1]));
-  var rep = {
-    ahorros: ganTotal * (split.ahorros/100),
-    casa: ganTotal * (split.casa/100),
-    personales: ganTotal * (split.personales/100)
-  };
-  var cats = [["ahorros","Ahorros","#3b6cb7"],["casa","Casa","#b8860b"],["personales","Personales","#6b3b8a"]];
-
-  return (
-    <div style={S.scroll}>
-      <p style={{fontSize:22,fontWeight:700,color:B.verde,fontFamily:"Georgia,serif",margin:"0 0 14px"}}>Ganancias</p>
-
-      <div style={{background:B.verde,borderRadius:16,padding:"16px 18px",marginBottom:16}}>
-        <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",fontWeight:600}}>Ganancia total (entregados)</div>
-        <div style={{fontSize:28,fontWeight:800,color:B.crema,letterSpacing:-0.5,marginTop:4}}>{fmt(ganTotal)}</div>
-      </div>
-
-      <p style={S.secTitle}>Reparto</p>
-      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:8}}>
-        {cats.map(function(c){
-          var k = c[0], label = c[1], color = c[2];
-          return (
-            <div key={k} style={{display:"flex",alignItems:"center",padding:"12px 14px",background:B.crema,border:"1px solid "+B.cremaOsc,borderRadius:14}}>
-              <div style={{width:8,height:36,borderRadius:6,background:color,marginRight:12}}/>
-              <div style={{flex:1}}>
-                <div style={{fontWeight:700,color:B.texto,fontSize:13}}>{label}</div>
-                <div style={{fontSize:17,fontWeight:800,color:color}}>{fmt(rep[k])}</div>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:4}}>
-                <input type="number" value={split[k]} onChange={function(e){
-                    var ns = Object.assign({}, split);
-                    ns[k] = Number(e.target.value);
-                    setSplit(ns);
-                  }}
-                  style={{width:46,textAlign:"center",border:"1px solid "+B.cremaOsc,borderRadius:8,padding:"5px 3px",fontSize:14,fontWeight:700,color:B.verde,background:B.crema}}/>
-                <span style={{color:B.textoSuave,fontWeight:700}}>%</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {tot !== 100 ? <p style={{color:"#c0392b",fontSize:13,marginBottom:10}}>Los porcentajes suman {tot}% (deben ser 100%)</p> : null}
-
-      <p style={S.secTitle}>Mes a mes</p>
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {MESES.map(function(mes,i){
-          var v = props.porMes[i];
-          if(v === 0) return null;
-          var t = tForVal(v, props.minV, props.maxV);
-          var bg = gradColor(t), fg = gradText(t);
-          var isMax = (v === props.maxV);
-          var isMin = (v === props.minV && props.minV !== props.maxV);
-          return (
-            <div key={i} style={{display:"flex",alignItems:"center",gap:12,borderRadius:14,padding:"12px 16px",background:bg,
-              border: "2px solid " + (isMax ? B.verdeOsc : (isMin ? "rgba(255,255,255,0.5)" : "transparent"))}}>
-              <div style={{width:50,fontWeight:800,color:fg,fontSize:14}}>{mes}</div>
-              <div style={{flex:1,height:7,background:"rgba(255,255,255,0.25)",borderRadius:8,overflow:"hidden"}}>
-                <div style={{width:(v/maxMes*100)+"%",height:"100%",background:"rgba(255,255,255,0.5)",borderRadius:8}}/>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
-                {isMax ? <span style={{fontSize:10,fontWeight:800,background:"rgba(255,255,255,0.3)",color:fg,padding:"2px 7px",borderRadius:10}}>MAX</span> : null}
-                {isMin ? <span style={{fontSize:10,fontWeight:800,background:"rgba(0,0,0,0.15)",color:fg,padding:"2px 7px",borderRadius:10}}>MIN</span> : null}
-                <div style={{minWidth:130,textAlign:"right",fontWeight:800,color:fg,fontSize:14.5}}>{fmt(v)}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════ CALCULADORA ═══════════════
-function CalcPrecio(props){
-  var dS = useState({material:"",combustible:"",otros:"",hM:1,hI:1,hC:1,hora:5000,margen:40});
-  var d = dS[0], setD = dS[1];
-  function set(k,v){ var nd = Object.assign({}, d); nd[k] = v; setD(nd); }
-  function n(k){ return Number(d[k]) || 0; }
-
-  var costoT = (n("hM") + n("hI") + n("hC")) * n("hora");
-  var costoR = n("material") + n("combustible") + n("otros") + costoT;
-  var precio = costoR * (1 + n("margen")/100);
-  var gan = precio - costoR;
-
-  return (
-    <div style={S.scroll}>
-      <p style={{fontSize:22,fontWeight:700,color:B.verde,fontFamily:"Georgia,serif",margin:"0 0 4px"}}>Calculadora</p>
-      <p style={{color:B.textoSuave,fontSize:13,margin:"0 0 16px"}}>Para fundas, cortinas y decoracion</p>
-
-      <div style={{background:B.crema,border:"1px solid "+B.cremaOsc,borderRadius:16,padding:"16px 16px 4px",marginBottom:14}}>
-        <Fld label="Costo del material / produccion"><input type="number" style={S.inp} value={d.material} onChange={function(e){ set("material", e.target.value); }} placeholder="0"/></Fld>
-        <Fld label="Combustible"><input type="number" style={S.inp} value={d.combustible} onChange={function(e){ set("combustible", e.target.value); }} placeholder="0"/></Fld>
-        <Fld label="Otros gastos"><input type="number" style={S.inp} value={d.otros} onChange={function(e){ set("otros", e.target.value); }} placeholder="0"/></Fld>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-          <Fld label="Hs medicion"><input type="number" style={S.inp} value={d.hM} onChange={function(e){ set("hM", e.target.value); }}/></Fld>
-          <Fld label="Hs instalac."><input type="number" style={S.inp} value={d.hI} onChange={function(e){ set("hI", e.target.value); }}/></Fld>
-          <Fld label="Hs coord."><input type="number" style={S.inp} value={d.hC} onChange={function(e){ set("hC", e.target.value); }}/></Fld>
-        </div>
-        <div style={S.grid2}>
-          <Fld label="Valor tu hora"><input type="number" style={S.inp} value={d.hora} onChange={function(e){ set("hora", e.target.value); }}/></Fld>
-          <Fld label="Margen (%)"><input type="number" style={S.inp} value={d.margen} onChange={function(e){ set("margen", e.target.value); }}/></Fld>
-        </div>
-      </div>
-
-      <div style={{background:B.verde,borderRadius:16,padding:"16px 18px",marginBottom:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.15)"}}>
-          <span style={{color:"rgba(255,255,255,0.75)",fontSize:13}}>Costo del tiempo</span>
-          <span style={{color:B.crema,fontWeight:600,fontSize:13}}>{fmt(costoT)}</span>
-        </div>
-        <div style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.15)"}}>
-          <span style={{color:"rgba(255,255,255,0.75)",fontSize:13,fontWeight:700}}>Costo total real</span>
-          <span style={{color:B.crema,fontWeight:800,fontSize:15}}>{fmt(costoR)}</span>
-        </div>
-        <div style={{marginTop:12}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-            <span style={{color:"rgba(255,255,255,0.8)",fontSize:14,fontWeight:600}}>Precio sugerido</span>
-            <span style={{color:B.crema,fontWeight:800,fontSize:22,letterSpacing:-0.5}}>{fmt(precio)}</span>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between"}}>
-            <span style={{color:"rgba(255,255,255,0.8)",fontSize:14,fontWeight:600}}>Tu ganancia</span>
-            <span style={{color:"#b8f0a0",fontWeight:800,fontSize:18}}>{fmt(gan)}</span>
-          </div>
-        </div>
-      </div>
-
-      <button onClick={function(){ props.onCrearPedido({total:Math.round(precio), costo:Math.round(costoR), ganancia:Math.round(gan)}); }}
-        style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",background:B.crema,color:B.verde,border:"2px solid "+B.verde,padding:"13px",borderRadius:14,fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"Georgia,serif"}}>
-        <IcoPlus size={17} w={2.5}/> Crear pedido con este precio
-      </button>
-    </div>
-  );
-}
-
-// ═══════════════ ESTILOS ═══════════════
+// ═══════════ ESTILOS ═══════════
 var S = {
   app:        {fontFamily:"system-ui,-apple-system,sans-serif",height:"100%",display:"flex",flexDirection:"column",background:B.cremaMed,maxWidth:680,margin:"0 auto"},
   header:     {padding:"14px 18px 12px",background:B.verde},
-  logoRow:    {display:"flex",alignItems:"center",gap:12},
-  logoBadge:  {width:40,height:40,borderRadius:10,background:"rgba(255,255,255,0.18)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:900,color:B.crema,fontFamily:"Georgia,serif",letterSpacing:1},
+  logoBadge:  {width:40,height:40,borderRadius:10,background:"rgba(255,255,255,0.18)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:900,color:B.crema,fontFamily:"Georgia,serif",letterSpacing:1,flexShrink:0},
   logoText:   {fontSize:17,fontWeight:900,color:B.crema,fontFamily:"Georgia,serif",letterSpacing:2},
   body:       {flex:1,overflow:"hidden",display:"flex"},
-  scroll:     {flex:1,overflowY:"auto",padding:"18px 16px 90px"},
+  scroll:     {flex:1,overflowY:"auto",padding:"18px 16px 90px",fontFamily:"system-ui,-apple-system,sans-serif"},
   nav:        {display:"flex",background:B.verde,paddingBottom:6},
   secTitle:   {fontSize:13,fontWeight:800,color:B.verde,textTransform:"uppercase",letterSpacing:1,margin:"0 0 10px",fontFamily:"Georgia,serif"},
-  miniCard:   {flex:1,padding:"14px",borderRadius:16,background:B.crema,border:"1px solid "+B.cremaOsc,cursor:"pointer",textAlign:"center"},
+  cardTitle:  {fontSize:12.5,fontWeight:800,color:B.verde,textTransform:"uppercase",letterSpacing:0.8,marginBottom:10,fontFamily:"Georgia,serif"},
+  miniCard:   {padding:"14px",borderRadius:16,background:B.crema,border:"1px solid "+B.cremaOsc,cursor:"pointer",textAlign:"center"},
   itemCard:   {display:"flex",alignItems:"center",width:"100%",padding:"12px 14px",background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:14,marginBottom:8,cursor:"pointer"},
   searchBox:  {display:"flex",alignItems:"center",gap:8,background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:12,padding:"10px 14px",marginBottom:10},
-  searchInput:{border:"none",outline:"none",flex:1,fontSize:16,background:"none",color:B.texto},
+  searchInput:{border:"none",outline:"none",flex:1,fontSize:15,background:"none",color:B.texto},
   chip:       {border:"none",padding:"6px 13px",borderRadius:20,fontSize:12.5,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"},
   pedCard:    {display:"flex",alignItems:"center",width:"100%",padding:"14px",background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:16,marginBottom:10,cursor:"pointer"},
-  addBtn:     {display:"flex",alignItems:"center",gap:5,background:B.crema,color:B.verde,border:"1.5px solid "+B.verde,padding:"8px 14px",borderRadius:12,fontWeight:700,fontSize:13.5,cursor:"pointer"},
+  addBtn:     {display:"flex",alignItems:"center",gap:5,background:B.crema,color:B.verde,border:"1.5px solid "+B.verde,padding:"9px 15px",borderRadius:12,fontWeight:700,fontSize:13.5,cursor:"pointer"},
   modalBg:    {position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50},
   modal:      {background:B.cremaMed,width:"100%",maxWidth:680,maxHeight:"92vh",borderRadius:"22px 22px 0 0",display:"flex",flexDirection:"column"},
   modalHead:  {display:"flex",justifyContent:"space-between",alignItems:"center",padding:"18px 20px 12px",borderBottom:"1px solid "+B.cremaOsc},
   modalBody:  {padding:"16px 20px",overflowY:"auto",flex:1},
-  inp:        {width:"100%",boxSizing:"border-box",border:"1px solid "+B.cremaOsc,borderRadius:10,padding:"10px 12px",fontSize:16,outline:"none",background:B.blanco,fontFamily:"inherit",color:B.texto},
+  inp:        {width:"100%",boxSizing:"border-box",border:"1px solid "+B.cremaOsc,borderRadius:10,padding:"10px 12px",fontSize:15,outline:"none",background:B.blanco,fontFamily:"inherit",color:B.texto},
   grid2:      {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
   calNav:     {background:B.cremaMed,border:"none",borderRadius:10,width:36,height:36,fontSize:18,color:B.verde,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}
 };
