@@ -1,0 +1,636 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Muebles Chic — Gestion</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%233d4f1c'/><text y='68' x='50' text-anchor='middle' font-size='46' font-family='Georgia' fill='%23f5f0e8'>MC</text></svg>">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:#ede7d9;-webkit-tap-highlight-color:transparent}
+  #root{height:100%}
+  button{font-family:inherit}
+  input,textarea,select{font-family:inherit}
+  ::-webkit-scrollbar{width:0;height:0}
+</style>
+
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+<script type="text/babel">
+const {useState,useEffect,useRef} = React;
+
+// ══════════════════════════════════════════════════════════
+//  CONFIGURACION — tu Google Sheet
+// ══════════════════════════════════════════════════════════
+const GS_URL = "https://script.google.com/macros/s/AKfycbzp30H5eqw2vIoKDZgvvSu91Vw5h5I6td381O6EFmcVXgPPAuMmE0APx-SdbdKxnQxicA/exec";
+
+// ══════════════════════════════════════════════════════════
+const B = {
+  verde:"#3d4f1c", verdeOsc:"#2d3a14", verdeMed:"#4a5e22", verdeClaro:"#6b7c3a",
+  crema:"#f5f0e8", cremaMed:"#ede7d9", cremaOsc:"#d9d0be",
+  blanco:"#ffffff", texto:"#1e2810", textoSuave:"#7a8a5a",
+};
+const fmt = n => "$ " + (Number(n)||0).toLocaleString("es-AR",{minimumFractionDigits:0,maximumFractionDigits:2});
+
+const TALLERES = ["Vane","Toto","Angie","Guillermo","Roni","Otro"];
+const ESTADOS  = ["Pendiente","Confeccion","Entregado"];
+const E_COLOR  = {
+  Pendiente: {bg:"#fef9e7",fg:"#7a6000",dot:"#c9a800"},
+  Confeccion:{bg:"#e8edf5",fg:"#1e3a6e",dot:"#3b6cb7"},
+  Entregado: {bg:"#eaf2e8",fg:"#2d5a27",dot:"#4a9e40"},
+};
+const normE = e => { if(!e) return "Pendiente"; if(e==="Confecci\u00f3n") return "Confeccion"; return e; };
+
+const MESES   = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const MESES_L = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DIAS_S  = ["Lun","Mar","Mie","Jue","Vie","Sab","Dom"];
+
+const COSTOS = [
+  ["angie","Angie"],["angieInsumo","Angie Insumo"],["guillermo","Guillermo"],
+  ["colocador","Colocador"],["riel","Riel"],["vane","Vane"],["vaneInsumo","Vane Insumo"],
+  ["telasExpress","Telas Express"],["toto","Toto"],["alplast","Alplast"],
+  ["dietextil","Dietextil"],["placas","Placas"],["juan","Juan Telas"],
+  ["mary","Telas Mary"],["nafta","Nafta"],["sacaMedidas","Saca Medidas"],
+];
+
+const parseFecha = f => {
+  if(!f) return new Date(0);
+  const p = String(f).split("/");
+  const d = parseInt(p[0],10)||1, m = parseInt(p[1],10)||1;
+  const y = p[2] ? (parseInt(p[2],10)<100 ? 2000+parseInt(p[2],10) : parseInt(p[2],10)) : 2026;
+  return new Date(y,m-1,d);
+};
+const mesIndex = f => { const d=parseFecha(f); return d.getTime()===0?null:d.getMonth(); };
+
+const gradColor = t => {
+  const li=[210,228,170], dk=[45,58,20];
+  const r=Math.round(li[0]+(dk[0]-li[0])*t), g=Math.round(li[1]+(dk[1]-li[1])*t), b=Math.round(li[2]+(dk[2]-li[2])*t);
+  return "rgb("+r+","+g+","+b+")";
+};
+const gradText = t => t>0.55 ? B.crema : B.verdeOsc;
+const tForVal  = (v,mn,mx) => mx===mn ? 0.5 : Math.max(0,Math.min(1,(v-mn)/(mx-mn)));
+
+function calcMeses(pedidos){
+  const porMes = MESES.map((_,i)=>pedidos.filter(p=>mesIndex(p.fecha)===i).reduce((a,p)=>a+(Number(p.ganancia)||0),0));
+  const vals = porMes.filter(v=>v>0);
+  return { porMes, maxV: vals.length?Math.max(...vals):1, minV: vals.length?Math.min(...vals):0 };
+}
+
+// ══════════════════════════════════════════════════════════
+//  Datos iniciales
+// ══════════════════════════════════════════════════════════
+const SEED = [
+  {fecha:"3/2", nombre:"Victoria",       direccion:"Devoto",          pedido:"2 fundas para acolchado reversibles",             taller:"Vane",      ganancia:89170,   total:233000,  costo:143830,  estado:"Entregado"},
+  {fecha:"26/1",nombre:"Ana",             direccion:"Milberg Town",    pedido:"Funda para sillon + puff + pillows x2",           taller:"Vane",      ganancia:198610,  total:412000,  costo:213390,  estado:"Entregado"},
+  {fecha:"26/1",nombre:"Ana",             direccion:"Milberg Town",    pedido:"Funda para exterior",                             taller:"Vane",      ganancia:133746,  total:276000,  costo:142254,  estado:"Entregado"},
+  {fecha:"29/1",nombre:"Sandra",          direccion:"Olivos",          pedido:"2 sillones tapizados en lino con funda + pillow",  taller:"Toto",      ganancia:844708,  total:2088000, costo:1243292, estado:"Entregado"},
+  {fecha:"4/1", nombre:"Josefina",        direccion:"Gral Rodriguez",  pedido:"Cortina 4,10x2,37 + riel y entrega",              taller:"Angie",     ganancia:174978,  total:392000,  costo:217022,  estado:"Entregado"},
+  {fecha:"28/1",nombre:"Vero",            direccion:"Florida",         pedido:"11 rieles de riel americano (33.8 mts)",          taller:"Guillermo", ganancia:204000,  total:1211000, costo:1007000, estado:"Entregado"},
+  {fecha:"1/5", nombre:"Victoria",        direccion:"Devoto",          pedido:"Funda sillon + rellenos vellon",                  taller:"Vane",      ganancia:142400,  total:464000,  costo:321600,  estado:"Confeccion"},
+  {fecha:"14/3",nombre:"Walter",          direccion:"San Gabriel",     pedido:"Camastro 2,00",                                   taller:"Toto",      ganancia:683700,  total:1297700, costo:614000,  estado:"Entregado"},
+  {fecha:"25/2",nombre:"Damiana",         direccion:"Milberg Town",    pedido:"8 fundas almohadon",                              taller:"Vane",      ganancia:63974,   total:119000,  costo:55026,   estado:"Entregado"},
+  {fecha:"25/2",nombre:"Veronica",        direccion:"San Matias",      pedido:"2 fundas para colchoneta",                        taller:"Vane",      ganancia:111176,  total:313000,  costo:201824,  estado:"Entregado"},
+  {fecha:"1/3", nombre:"Ana",             direccion:"Milberg Town 71", pedido:"3 combos exterior con rellenos",                  taller:"Vane",      ganancia:288100,  total:675000,  costo:386900,  estado:"Entregado"},
+  {fecha:"11/3",nombre:"More",            direccion:"Recoleta",        pedido:"Funda curva",                                     taller:"Vane",      ganancia:159600,  total:310000,  costo:150400,  estado:"Entregado"},
+  {fecha:"13/4",nombre:"Laura",           direccion:"Beccar",          pedido:"3 fundas. 2 ind. 1 de 2,30 / placa asiento",     taller:"Vane",      ganancia:248500,  total:637000,  costo:388500,  estado:"Entregado"},
+  {fecha:"23/4",nombre:"Manuel",          direccion:"San Marco",       pedido:"2 fundas Panama pesado + pillows",                taller:"Vane",      ganancia:293560,  total:698000,  costo:404440,  estado:"Entregado"},
+  {fecha:"23/4",nombre:"Pilar",           direccion:"Don Torcuato",    pedido:"15 cortinas. 1 roller blackout. Barrales y rieles",taller:"Angie",    ganancia:1064233, total:3993000, costo:2928767, estado:"Entregado"},
+  {fecha:"17/4",nombre:"Thais",           direccion:"Nordelta",        pedido:"1 cortina",                                       taller:"Angie",     ganancia:-1300,   total:147000,  costo:148300,  estado:"Entregado"},
+  {fecha:"17/4",nombre:"Annie",           direccion:"El Encuentro 74", pedido:"1 blackout 446x258 sin pliegue",                  taller:"Angie",     ganancia:150700,  total:288000,  costo:137300,  estado:"Entregado"},
+  {fecha:"27/4",nombre:"Delfina Basile",  direccion:"Cabos del Lago",  pedido:"Funda sillon + recambio asiento + cortina gasa",  taller:"Angie",     ganancia:251738,  total:599000,  costo:347262,  estado:"Entregado"},
+  {fecha:"30/5",nombre:"Agustin Galeano", direccion:"Floresta CABA",   pedido:"1 cortina 2,60x220 para barral",                  taller:"Angie",     ganancia:153000,  total:382000,  costo:229000,  estado:"Entregado"},
+  {fecha:"15/5",nombre:"Fabian",          direccion:"Villa Vela",      pedido:"2 cortinas gasa, 1 blackout",                    taller:"Angie",     ganancia:426982,  total:1144000, costo:717018,  estado:"Entregado"},
+  {fecha:"11/5",nombre:"Thais",           direccion:"Sendero",         pedido:"Camabox 160x190",                                 taller:"Roni",      ganancia:0,       total:680000,  costo:680000,  estado:"Confeccion"},
+  {fecha:"1/5", nombre:"Fer",             direccion:"Beccar",          pedido:"Cama perro",                                      taller:"Vane",      ganancia:9000,    total:27000,   costo:18000,   estado:"Entregado"},
+  {fecha:"29/5",nombre:"Manuel",          direccion:"San Marco",       pedido:"4 asientos exterior",                            taller:"Vane",      ganancia:153427.5,total:352000,  costo:198572.5,estado:"Pendiente"},
+  {fecha:"29/5",nombre:"Ani",             direccion:"El Encuentro",    pedido:"1 blackout 460x240",                              taller:"Angie",     ganancia:142000,  total:288000,  costo:146000,  estado:"Entregado"},
+].map((p,i)=>({id:"seed-"+i,telas:"",comprar:0,senas:0,resto:0,costos:{},...p}));
+
+const DEFAULT_SPLIT = {ahorros:20,casa:40,personales:40};
+const nuevoPedido = () => ({
+  id:"p-"+Date.now()+"-"+Math.floor(Math.random()*1000),
+  fecha:"",nombre:"",direccion:"",pedido:"",taller:"Vane",
+  telas:"",comprar:0,senas:0,total:0,resto:0,ganancia:0,costo:0,
+  estado:"Pendiente",costos:{},
+});
+
+// ══════════════════════════════════════════════════════════
+//  Iconos
+// ══════════════════════════════════════════════════════════
+function Ico({d,size=21,w=2,color="currentColor",children}){
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round">{children||<path d={d}/>}</svg>;
+}
+const IcoHome  = p => <Ico {...p}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></Ico>;
+const IcoList  = p => <Ico {...p}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></Ico>;
+const IcoMoney = p => <Ico {...p}><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></Ico>;
+const IcoCalc  = p => <Ico {...p}><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h4"/></Ico>;
+const IcoPlus  = p => <Ico {...p} d="M12 5v14M5 12h14"/>;
+const IcoX     = p => <Ico {...p}><path d="M18 6L6 18M6 6l12 12"/></Ico>;
+const IcoSearch= p => <Ico {...p}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></Ico>;
+const IcoTrash = p => <Ico {...p}><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></Ico>;
+const IcoChev  = p => <Ico {...p} d="M9 18l6-6-6-6"/>;
+const IcoCal   = p => <Ico {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></Ico>;
+const IcoCloud = p => <Ico {...p}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></Ico>;
+
+// ══════════════════════════════════════════════════════════
+//  App
+// ══════════════════════════════════════════════════════════
+function App(){
+  const [tab,setTab]         = useState("inicio");
+  const [pedidos,setPedidos] = useState(null);
+  const [split,setSplit]     = useState(DEFAULT_SPLIT);
+  const [editing,setEditing] = useState(null);
+  const [loaded,setLoaded]   = useState(false);
+  const [sync,setSync]       = useState("cargando"); // cargando | ok | error | guardando
+  const first = useRef(true);
+
+  // Cargar
+  useEffect(()=>{
+    (async()=>{
+      let cargado = null;
+      try{
+        const res = await fetch(GS_URL);
+        const txt = await res.text();
+        const obj = JSON.parse(txt);
+        if(obj && Array.isArray(obj.pedidos)){ cargado = obj; }
+        else if(Array.isArray(obj) && obj.length){ cargado = {pedidos:obj, split:DEFAULT_SPLIT}; }
+        setSync("ok");
+      }catch(err){ setSync("error"); }
+
+      if(cargado){
+        setPedidos(cargado.pedidos);
+        if(cargado.split) setSplit(cargado.split);
+      }else{
+        try{
+          const local = localStorage.getItem("mc_data");
+          if(local){ const d=JSON.parse(local); setPedidos(d.pedidos||SEED); if(d.split) setSplit(d.split); }
+          else setPedidos(SEED);
+        }catch{ setPedidos(SEED); }
+      }
+      setLoaded(true);
+    })();
+  },[]);
+
+  // Guardar
+  useEffect(()=>{
+    if(!loaded||!pedidos) return;
+    if(first.current){ first.current=false; return; }
+    const data = {pedidos,split};
+    try{ localStorage.setItem("mc_data", JSON.stringify(data)); }catch{}
+    setSync("guardando");
+    fetch(GS_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(data)})
+      .then(()=>setSync("ok")).catch(()=>setSync("error"));
+  },[pedidos,split,loaded]);
+
+  if(!pedidos) return <div style={{display:"flex",height:"100%",alignItems:"center",justifyContent:"center",background:B.crema,color:B.verde,fontFamily:"Georgia,serif",fontSize:16}}>Cargando...</div>;
+
+  const guardar = p => { setPedidos(prev=>prev.some(x=>x.id===p.id)?prev.map(x=>x.id===p.id?p:x):[p,...prev]); setEditing(null); };
+  const borrar  = id => { setPedidos(prev=>prev.filter(x=>x.id!==id)); setEditing(null); };
+  const {porMes,maxV,minV} = calcMeses(pedidos);
+
+  const syncTxt = {cargando:"Conectando...",guardando:"Guardando...",ok:"Guardado en Drive",error:"Sin conexion (local)"}[sync];
+  const syncCol = sync==="error" ? "#e8b4b4" : "rgba(255,255,255,0.6)";
+
+  return (
+    <div style={S.app}>
+      <div style={S.header}>
+        <div style={S.logoRow}>
+          <div style={S.logoBadge}>MC</div>
+          <div style={{flex:1}}>
+            <div style={S.logoText}>MUEBLES <span style={{color:B.crema,fontWeight:400}}>CHIC</span></div>
+            <div style={{...S.logoSub,display:"flex",alignItems:"center",gap:5,color:syncCol}}>
+              <IcoCloud size={11} w={2.2} color={syncCol}/> {syncTxt}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={S.body}>
+        {tab==="inicio"    && <Inicio    pedidos={pedidos} onIr={setTab} porMes={porMes} maxV={maxV} minV={minV}/>}
+        {tab==="pedidos"   && <Pedidos   pedidos={pedidos} onNuevo={()=>setEditing(nuevoPedido())} onEditar={setEditing}/>}
+        {tab==="ganancias" && <Ganancias pedidos={pedidos} split={split} setSplit={setSplit} porMes={porMes} maxV={maxV} minV={minV}/>}
+        {tab==="calc"      && <CalcPrecio onCrearPedido={d=>setEditing({...nuevoPedido(),...d})}/>}
+      </div>
+
+      <div style={S.nav}>
+        {[["inicio",IcoHome,"Inicio"],["pedidos",IcoList,"Pedidos"],["ganancias",IcoMoney,"Ganancias"],["calc",IcoCalc,"Precio"]].map(([k,Icon,label])=>(
+          <button key={k} onClick={()=>setTab(k)} style={{...S.navBtn,color:tab===k?B.crema:B.verdeClaro,borderTop:tab===k?"3px solid "+B.crema:"3px solid transparent"}}>
+            <Icon size={21} w={tab===k?2.5:1.8}/>
+            <span style={{fontSize:10.5,marginTop:3,fontWeight:tab===k?700:500,letterSpacing:0.3}}>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {editing && <FormPedido pedido={editing} onGuardar={guardar} onBorrar={borrar} onCerrar={()=>setEditing(null)}/>}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+function DatePicker({value,onChange}){
+  const [open,setOpen] = useState(false);
+  const parsed = (()=>{ if(!value) return {d:null,m:null,y:2026};
+    const p=String(value).split("/");
+    return {d:parseInt(p[0],10)||null,m:parseInt(p[1],10)||null,y:p[2]?(parseInt(p[2],10)<100?2000+parseInt(p[2],10):parseInt(p[2],10)):2026}; })();
+  const today = new Date();
+  const [viewM,setViewM] = useState(parsed.m?parsed.m-1:today.getMonth());
+  const [viewY,setViewY] = useState(parsed.y||today.getFullYear());
+  const daysInM = new Date(viewY,viewM+1,0).getDate();
+  const offset  = (new Date(viewY,viewM,1).getDay()+6)%7;
+  const prevM = ()=> viewM===0?(setViewM(11),setViewY(y=>y-1)):setViewM(m=>m-1);
+  const nextM = ()=> viewM===11?(setViewM(0),setViewY(y=>y+1)):setViewM(m=>m+1);
+
+  return (<>
+    <button type="button" onClick={()=>setOpen(true)} style={{...S.inp,textAlign:"left",cursor:"pointer",color:value?B.texto:B.textoSuave,display:"flex",alignItems:"center",gap:8}}>
+      <IcoCal size={15} w={2} color={B.verdeClaro}/><span>{value||"Seleccionar fecha"}</span>
+    </button>
+    {open && (
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setOpen(false)}>
+        <div style={{background:B.blanco,borderRadius:22,padding:20,width:"100%",maxWidth:330,boxShadow:"0 12px 40px rgba(0,0,0,0.25)"}} onClick={e=>e.stopPropagation()}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <button type="button" onClick={prevM} style={S.calNav}>&#8249;</button>
+            <span style={{fontWeight:800,color:B.verde,fontSize:16,fontFamily:"Georgia,serif"}}>{MESES_L[viewM]} {viewY}</span>
+            <button type="button" onClick={nextM} style={S.calNav}>&#8250;</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",marginBottom:6}}>
+            {DIAS_S.map(d=><div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,color:B.textoSuave,padding:"3px 0"}}>{d}</div>)}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+            {Array(offset).fill(null).map((_,i)=><div key={"e"+i}/>)}
+            {Array(daysInM).fill(null).map((_,i)=>{
+              const d=i+1;
+              const sel = parsed.d===d && parsed.m===viewM+1;
+              const isTod = today.getDate()===d&&today.getMonth()===viewM&&today.getFullYear()===viewY;
+              return <button key={d} type="button" onClick={()=>{onChange(d+"/"+(viewM+1));setOpen(false);}}
+                style={{padding:"10px 2px",border:"none",borderRadius:10,cursor:"pointer",fontSize:14,
+                  fontWeight:sel||isTod?700:400,
+                  background:sel?B.verde:isTod?B.cremaMed:"transparent",
+                  color:sel?B.crema:isTod?B.verde:B.texto}}>{d}</button>;
+            })}
+          </div>
+          <button type="button" onClick={()=>setOpen(false)} style={{marginTop:14,width:"100%",background:B.cremaMed,color:B.verdeMed,border:"none",borderRadius:12,padding:"11px",fontWeight:700,cursor:"pointer",fontSize:14}}>Listo</button>
+        </div>
+      </div>
+    )}
+  </>);
+}
+
+function Badge({estado}){
+  const k=normE(estado); const c=E_COLOR[k]||E_COLOR.Pendiente;
+  return <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,background:c.bg,color:c.fg}}>{k}</span>;
+}
+
+// ══════════════════════════════════════════════════════════
+function Inicio({pedidos,onIr,porMes,maxV,minV}){
+  const mes = new Date().getMonth();
+  const delMes = pedidos.filter(p=>mesIndex(p.fecha)===mes);
+  const facturado = delMes.reduce((a,p)=>a+(Number(p.total)||0),0);
+  const ganado    = delMes.reduce((a,p)=>a+(Number(p.ganancia)||0),0);
+  const enConf    = pedidos.filter(p=>normE(p.estado)==="Confeccion").length;
+  const pend      = pedidos.filter(p=>normE(p.estado)==="Pendiente").length;
+  const xEntregar = pedidos.filter(p=>normE(p.estado)!=="Entregado");
+
+  return (
+    <div style={S.scroll}>
+      <p style={{fontSize:22,fontWeight:700,color:B.verde,fontFamily:"Georgia,serif",margin:"0 0 2px"}}>Hola, Ro</p>
+      <p style={{color:B.textoSuave,fontSize:13,margin:"0 0 16px"}}>Resumen de {MESES_L[mes]}</p>
+
+      <div style={{display:"flex",gap:10,marginBottom:10}}>
+        <div style={{flex:1,padding:"14px 16px",borderRadius:16,background:B.verde}}>
+          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.7)",fontWeight:600,marginBottom:4}}>Facturado este mes</div>
+          <div style={{fontSize:18,fontWeight:800,color:B.crema,letterSpacing:-0.5}}>{fmt(facturado)}</div>
+        </div>
+        <div style={{flex:1,padding:"14px 16px",borderRadius:16,background:B.verdeMed}}>
+          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.7)",fontWeight:600,marginBottom:4}}>Tu ganancia</div>
+          <div style={{fontSize:18,fontWeight:800,color:B.crema,letterSpacing:-0.5}}>{fmt(ganado)}</div>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:10,marginBottom:18}}>
+        <button onClick={()=>onIr("pedidos")} style={S.miniCard}>
+          <div style={{fontSize:28,fontWeight:800,color:B.verde}}>{enConf}</div>
+          <div style={{fontSize:12,color:B.textoSuave,fontWeight:600}}>En confeccion</div>
+        </button>
+        <button onClick={()=>onIr("pedidos")} style={S.miniCard}>
+          <div style={{fontSize:28,fontWeight:800,color:"#c9a800"}}>{pend}</div>
+          <div style={{fontSize:12,color:B.textoSuave,fontWeight:600}}>Pendientes</div>
+        </button>
+      </div>
+
+      <p style={S.secTitle}>Ganancias por mes</p>
+      <div style={{display:"flex",gap:5,marginBottom:20,flexWrap:"wrap"}}>
+        {porMes.map((v,i)=>{
+          if(v===0) return null;
+          const t=tForVal(v,minV,maxV), bg=gradColor(t), fg=gradText(t);
+          return (
+            <button key={i} onClick={()=>onIr("ganancias")} style={{flex:"0 0 auto",padding:"8px 10px",borderRadius:12,
+              border:i===mes?"2px solid "+B.verdeOsc:"2px solid transparent",background:bg,cursor:"pointer",minWidth:52,textAlign:"center"}}>
+              <div style={{fontSize:10.5,fontWeight:700,color:fg,opacity:0.85}}>{MESES[i]}</div>
+              <div style={{fontSize:11.5,fontWeight:800,color:fg,marginTop:2,letterSpacing:-0.3}}>{fmt(v).replace("$ ","$")}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <p style={S.secTitle}>Por entregar</p>
+      {xEntregar.length===0
+        ? <p style={{color:B.textoSuave,fontSize:14}}>Todo entregado!</p>
+        : xEntregar.map(p=>{
+            const c=E_COLOR[normE(p.estado)]||E_COLOR.Pendiente;
+            return (
+              <button key={p.id} onClick={()=>onIr("pedidos")} style={S.itemCard}>
+                <div style={{width:8,height:8,borderRadius:8,background:c.dot,marginRight:10,flexShrink:0}}/>
+                <div style={{flex:1,textAlign:"left"}}>
+                  <div style={{fontWeight:700,color:B.texto,fontSize:14}}>{p.nombre} <span style={{color:B.textoSuave,fontWeight:400}}>· {p.taller}</span></div>
+                  <div style={{fontSize:12,color:B.textoSuave,marginTop:1}}>{p.pedido}</div>
+                </div>
+                <Badge estado={p.estado}/>
+              </button>
+            );
+          })}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+function Pedidos({pedidos,onNuevo,onEditar}){
+  const [q,setQ]=useState(""), [filtro,setFiltro]=useState("Todos"), [tallerF,setTallerF]=useState("Todos");
+  const filtrados = [...pedidos].filter(p=>{
+    const txt=(p.nombre+" "+p.pedido+" "+p.direccion+" "+p.taller).toLowerCase();
+    const mQ=txt.includes(q.toLowerCase());
+    const mF=filtro==="Todos"||(filtro==="Por entregar"?normE(p.estado)!=="Entregado":normE(p.estado)===filtro);
+    const mT=tallerF==="Todos"||p.taller===tallerF;
+    return mQ&&mF&&mT;
+  }).sort((a,b)=>parseFecha(b.fecha)-parseFecha(a.fecha));
+
+  return (
+    <div style={S.scroll}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <p style={{...S.secTitle,margin:0}}>Pedidos</p>
+        <button onClick={onNuevo} style={S.addBtn}><IcoPlus size={16} w={2.5}/> Nuevo</button>
+      </div>
+      <div style={S.searchBox}>
+        <IcoSearch size={16} w={2} color={B.textoSuave}/>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar cliente, pedido..." style={S.searchInput}/>
+      </div>
+      <div style={{display:"flex",gap:7,overflowX:"auto",marginBottom:8,paddingBottom:2}}>
+        {["Todos","Por entregar","Pendiente","Confeccion","Entregado"].map(f=>(
+          <button key={f} onClick={()=>setFiltro(f)} style={{...S.chip,background:filtro===f?B.verde:B.cremaMed,color:filtro===f?B.crema:B.verdeMed}}>{f}</button>
+        ))}
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:7,overflowX:"auto",marginBottom:14,paddingBottom:2}}>
+        <span style={{fontSize:12,color:B.textoSuave,fontWeight:700,whiteSpace:"nowrap"}}>Taller:</span>
+        {["Todos",...TALLERES].map(t=>(
+          <button key={t} onClick={()=>setTallerF(t)} style={{...S.chip,background:tallerF===t?B.verdeOsc:B.cremaMed,color:tallerF===t?B.crema:B.verdeMed}}>{t}</button>
+        ))}
+      </div>
+      {filtrados.map((p,idx)=>{
+        const prev=filtrados[idx-1], pMes=mesIndex(p.fecha), prevMes=prev?mesIndex(prev.fecha):null;
+        return (
+          <div key={p.id}>
+            {pMes!==null && pMes!==prevMes && (
+              <div style={{fontSize:12,fontWeight:800,color:B.verdeClaro,textTransform:"uppercase",letterSpacing:1,padding:"8px 2px 4px"}}>{MESES_L[pMes]}</div>
+            )}
+            <button onClick={()=>onEditar(p)} style={S.pedCard}>
+              <div style={{flex:1,textAlign:"left"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                  <span style={{fontWeight:700,fontSize:15,color:B.texto}}>{p.nombre}</span>
+                  <Badge estado={p.estado}/>
+                </div>
+                <div style={{fontSize:12.5,color:B.textoSuave,marginBottom:3}}>{p.pedido}</div>
+                <div style={{fontSize:11.5,color:B.cremaOsc}}>{p.fecha} · {p.direccion} · {p.taller}</div>
+                <div style={{display:"flex",gap:14,marginTop:6}}>
+                  <span style={{fontSize:12.5,color:B.texto}}><b>{fmt(p.total)}</b> <span style={{color:B.textoSuave}}>venta</span></span>
+                  <span style={{fontSize:12.5,color:B.verdeMed}}><b>{fmt(p.ganancia)}</b> <span style={{color:B.textoSuave}}>ganas</span></span>
+                </div>
+              </div>
+              <IcoChev size={18} w={2} color={B.cremaOsc}/>
+            </button>
+          </div>
+        );
+      })}
+      {filtrados.length===0 && <p style={{color:B.textoSuave,fontSize:14}}>No hay pedidos que coincidan.</p>}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+function Fld({label,children}){
+  return <label style={{display:"block",marginBottom:12}}>
+    <span style={{fontSize:12,fontWeight:700,color:B.verdeMed,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:0.5}}>{label}</span>
+    {children}</label>;
+}
+
+function FormPedido({pedido,onGuardar,onBorrar,onCerrar}){
+  const [p,setP]=useState({...pedido,costos:pedido.costos||{}});
+  const set=(k,v)=>setP(x=>({...x,[k]:v}));
+  const setC=(k,v)=>setP(x=>({...x,costos:{...x.costos,[k]:v}}));
+  const sumaP=COSTOS.reduce((a,[k])=>a+(Number(p.costos[k])||0),0);
+  const restoSug=(Number(p.total)||0)-(Number(p.senas)||0);
+
+  return (
+    <div style={S.modalBg} onClick={onCerrar}>
+      <div style={S.modal} onClick={e=>e.stopPropagation()}>
+        <div style={S.modalHead}>
+          <span style={{fontWeight:700,fontSize:17,color:B.verde,fontFamily:"Georgia,serif"}}>{pedido.nombre?"Editar pedido":"Nuevo pedido"}</span>
+          <button onClick={onCerrar} style={{background:B.cremaMed,border:"none",borderRadius:10,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:B.verdeMed}}><IcoX size={20} w={2}/></button>
+        </div>
+        <div style={S.modalBody}>
+          <div style={S.grid2}>
+            <Fld label="Fecha"><DatePicker value={p.fecha} onChange={v=>set("fecha",v)}/></Fld>
+            <Fld label="Taller"><select style={S.inp} value={p.taller} onChange={e=>set("taller",e.target.value)}>{TALLERES.map(t=><option key={t}>{t}</option>)}</select></Fld>
+          </div>
+          <Fld label="Cliente"><input style={S.inp} value={p.nombre} onChange={e=>set("nombre",e.target.value)}/></Fld>
+          <Fld label="Direccion"><input style={S.inp} value={p.direccion} onChange={e=>set("direccion",e.target.value)}/></Fld>
+          <Fld label="Pedido"><textarea style={{...S.inp,minHeight:58,resize:"vertical"}} value={p.pedido} onChange={e=>set("pedido",e.target.value)}/></Fld>
+          <Fld label="Telas / materiales"><textarea style={{...S.inp,minHeight:44,resize:"vertical"}} value={p.telas} onChange={e=>set("telas",e.target.value)}/></Fld>
+          <Fld label="Estado">
+            <div style={{display:"flex",gap:8}}>
+              {ESTADOS.map(e=>{ const c=E_COLOR[e]; const on=normE(p.estado)===e; return (
+                <button key={e} onClick={()=>set("estado",e)} style={{flex:1,padding:"8px 0",borderRadius:10,border:"1.5px solid "+(on?c.dot:B.cremaOsc),background:on?c.bg:B.crema,color:on?c.fg:B.textoSuave,fontSize:12.5,fontWeight:on?700:500,cursor:"pointer"}}>{e}</button>
+              );})}
+            </div>
+          </Fld>
+          <div style={S.grid2}>
+            <Fld label="Total (venta)"><input type="number" style={S.inp} value={p.total} onChange={e=>set("total",e.target.value)}/></Fld>
+            <Fld label="Sena"><input type="number" style={S.inp} value={p.senas} onChange={e=>set("senas",e.target.value)}/></Fld>
+          </div>
+          <div style={S.grid2}>
+            <Fld label="Resto / contra entrega">
+              <input type="number" style={S.inp} value={p.resto} onChange={e=>set("resto",e.target.value)}/>
+              <button type="button" onClick={()=>set("resto",restoSug)} style={{marginTop:5,background:B.cremaMed,color:B.verdeMed,border:"1px solid "+B.cremaOsc,borderRadius:8,padding:"6px 8px",fontSize:11.5,fontWeight:700,cursor:"pointer",width:"100%"}}>
+                Calcular: total - sena = {fmt(restoSug)}
+              </button>
+            </Fld>
+            <Fld label="Costo total"><input type="number" style={S.inp} value={p.costo} onChange={e=>set("costo",e.target.value)}/></Fld>
+          </div>
+          <Fld label="Tu ganancia"><input type="number" style={{...S.inp,fontWeight:800,color:B.verdeMed}} value={p.ganancia} onChange={e=>set("ganancia",e.target.value)}/></Fld>
+          <details style={{marginTop:8,background:B.crema,borderRadius:12,padding:"12px 14px",border:"1px solid "+B.cremaOsc}}>
+            <summary style={{fontWeight:700,color:B.verdeMed,cursor:"pointer",fontSize:13.5}}>Detalle por proveedor</summary>
+            <div style={{...S.grid2,marginTop:10}}>
+              {COSTOS.map(([k,label])=>(
+                <Fld key={k} label={label}><input type="number" style={S.inp} value={p.costos[k]||""} onChange={e=>setC(k,e.target.value)} placeholder="0"/></Fld>
+              ))}
+            </div>
+            {sumaP>0 && (
+              <div style={{marginTop:10,padding:12,background:B.cremaMed,borderRadius:10}}>
+                <div style={{fontSize:13,color:B.textoSuave}}>Suma: <b>{fmt(sumaP)}</b> · Ganancia: <b style={{color:B.verdeMed}}>{fmt((Number(p.total)||0)-sumaP)}</b></div>
+                <button onClick={()=>{set("costo",sumaP);set("ganancia",(Number(p.total)||0)-sumaP);}} style={{marginTop:8,width:"100%",background:B.verde,color:B.crema,border:"none",padding:"9px",borderRadius:10,fontWeight:700,cursor:"pointer",fontSize:13}}>Usar este costo y ganancia</button>
+              </div>
+            )}
+          </details>
+        </div>
+        <div style={{display:"flex",gap:10,padding:"14px 20px",borderTop:"1px solid "+B.cremaMed}}>
+          {pedido.nombre && <button onClick={()=>onBorrar(pedido.id)} style={{background:"#fde8e8",color:"#c0392b",border:"none",borderRadius:12,width:46,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><IcoTrash size={17} w={2}/></button>}
+          <button onClick={()=>onGuardar(p)} style={{flex:1,background:B.verde,color:B.crema,border:"none",padding:"13px",borderRadius:12,fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"Georgia,serif"}}>Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+function Ganancias({pedidos,split,setSplit,porMes,maxV,minV}){
+  const tot = split.ahorros+split.casa+split.personales;
+  const ganTotal = pedidos.filter(p=>normE(p.estado)==="Entregado").reduce((a,p)=>a+(Number(p.ganancia)||0),0);
+  const maxMes = Math.max(...porMes,1);
+  const rep = {ahorros:ganTotal*(split.ahorros/100),casa:ganTotal*(split.casa/100),personales:ganTotal*(split.personales/100)};
+
+  return (
+    <div style={S.scroll}>
+      <p style={{fontSize:22,fontWeight:700,color:B.verde,fontFamily:"Georgia,serif",margin:"0 0 14px"}}>Ganancias</p>
+      <div style={{background:B.verde,borderRadius:16,padding:"16px 18px",marginBottom:16}}>
+        <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",fontWeight:600}}>Ganancia total (entregados)</div>
+        <div style={{fontSize:28,fontWeight:800,color:B.crema,letterSpacing:-0.5,marginTop:4}}>{fmt(ganTotal)}</div>
+      </div>
+
+      <p style={S.secTitle}>Reparto</p>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:8}}>
+        {[["ahorros","Ahorros","#3b6cb7"],["casa","Casa","#b8860b"],["personales","Personales","#6b3b8a"]].map(([k,label,color])=>(
+          <div key={k} style={{display:"flex",alignItems:"center",padding:"12px 14px",background:B.crema,border:"1px solid "+B.cremaOsc,borderRadius:14}}>
+            <div style={{width:8,height:36,borderRadius:6,background:color,marginRight:12}}/>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,color:B.texto,fontSize:13}}>{label}</div>
+              <div style={{fontSize:17,fontWeight:800,color}}>{fmt(rep[k])}</div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <input type="number" value={split[k]} onChange={e=>setSplit({...split,[k]:Number(e.target.value)})} style={{width:46,textAlign:"center",border:"1px solid "+B.cremaOsc,borderRadius:8,padding:"5px 3px",fontSize:14,fontWeight:700,color:B.verde,background:B.crema}}/>
+              <span style={{color:B.textoSuave,fontWeight:700}}>%</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      {tot!==100 && <p style={{color:"#c0392b",fontSize:13,marginBottom:10}}>Los porcentajes suman {tot}% (deben ser 100%)</p>}
+
+      <p style={S.secTitle}>Mes a mes</p>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {MESES.map((mes,i)=>{
+          const v=porMes[i]; if(v===0) return null;
+          const t=tForVal(v,minV,maxV), bg=gradColor(t), fg=gradText(t);
+          const isMax=v===maxV, isMin=v===minV&&minV!==maxV;
+          return (
+            <div key={i} style={{display:"flex",alignItems:"center",gap:12,borderRadius:14,padding:"12px 16px",background:bg,
+              border:"2px solid "+(isMax?B.verdeOsc:isMin?"rgba(255,255,255,0.5)":"transparent")}}>
+              <div style={{width:50,fontWeight:800,color:fg,fontSize:14}}>{mes}</div>
+              <div style={{flex:1,height:7,background:"rgba(255,255,255,0.25)",borderRadius:8,overflow:"hidden"}}>
+                <div style={{width:(v/maxMes*100)+"%",height:"100%",background:"rgba(255,255,255,0.5)",borderRadius:8}}/>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                {isMax && <span style={{fontSize:10,fontWeight:800,background:"rgba(255,255,255,0.3)",color:fg,padding:"2px 7px",borderRadius:10}}>MAX</span>}
+                {isMin && <span style={{fontSize:10,fontWeight:800,background:"rgba(0,0,0,0.15)",color:fg,padding:"2px 7px",borderRadius:10}}>MIN</span>}
+                <div style={{minWidth:130,textAlign:"right",fontWeight:800,color:fg,fontSize:14.5}}>{fmt(v)}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+function CalcPrecio({onCrearPedido}){
+  const [d,setD]=useState({material:"",combustible:"",otros:"",hM:1,hI:1,hC:1,hora:5000,margen:40});
+  const set=(k,v)=>setD(x=>({...x,[k]:v}));
+  const n=k=>Number(d[k])||0;
+  const costoT=(n("hM")+n("hI")+n("hC"))*n("hora");
+  const costoR=n("material")+n("combustible")+n("otros")+costoT;
+  const precio=costoR*(1+n("margen")/100);
+  const gan=precio-costoR;
+
+  return (
+    <div style={S.scroll}>
+      <p style={{fontSize:22,fontWeight:700,color:B.verde,fontFamily:"Georgia,serif",margin:"0 0 4px"}}>Calculadora</p>
+      <p style={{color:B.textoSuave,fontSize:13,margin:"0 0 16px"}}>Para fundas, cortinas y decoracion</p>
+      <div style={{background:B.crema,border:"1px solid "+B.cremaOsc,borderRadius:16,padding:"16px 16px 4px",marginBottom:14}}>
+        <Fld label="Costo del material / produccion"><input type="number" style={S.inp} value={d.material} onChange={e=>set("material",e.target.value)} placeholder="0"/></Fld>
+        <Fld label="Combustible"><input type="number" style={S.inp} value={d.combustible} onChange={e=>set("combustible",e.target.value)} placeholder="0"/></Fld>
+        <Fld label="Otros gastos"><input type="number" style={S.inp} value={d.otros} onChange={e=>set("otros",e.target.value)} placeholder="0"/></Fld>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+          <Fld label="Hs medicion"><input type="number" style={S.inp} value={d.hM} onChange={e=>set("hM",e.target.value)}/></Fld>
+          <Fld label="Hs instalac."><input type="number" style={S.inp} value={d.hI} onChange={e=>set("hI",e.target.value)}/></Fld>
+          <Fld label="Hs coord."><input type="number" style={S.inp} value={d.hC} onChange={e=>set("hC",e.target.value)}/></Fld>
+        </div>
+        <div style={S.grid2}>
+          <Fld label="Valor tu hora"><input type="number" style={S.inp} value={d.hora} onChange={e=>set("hora",e.target.value)}/></Fld>
+          <Fld label="Margen (%)"><input type="number" style={S.inp} value={d.margen} onChange={e=>set("margen",e.target.value)}/></Fld>
+        </div>
+      </div>
+      <div style={{background:B.verde,borderRadius:16,padding:"16px 18px",marginBottom:14}}>
+        {[["Costo del tiempo",fmt(costoT),false],["Costo total real",fmt(costoR),true]].map(([l,v,b])=>(
+          <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.15)"}}>
+            <span style={{color:"rgba(255,255,255,0.75)",fontSize:13,fontWeight:b?700:400}}>{l}</span>
+            <span style={{color:B.crema,fontWeight:b?800:600,fontSize:b?15:13}}>{v}</span>
+          </div>
+        ))}
+        <div style={{marginTop:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <span style={{color:"rgba(255,255,255,0.8)",fontSize:14,fontWeight:600}}>Precio sugerido</span>
+            <span style={{color:B.crema,fontWeight:800,fontSize:22,letterSpacing:-0.5}}>{fmt(precio)}</span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <span style={{color:"rgba(255,255,255,0.8)",fontSize:14,fontWeight:600}}>Tu ganancia</span>
+            <span style={{color:"#b8f0a0",fontWeight:800,fontSize:18}}>{fmt(gan)}</span>
+          </div>
+        </div>
+      </div>
+      <button onClick={()=>onCrearPedido({total:Math.round(precio),costo:Math.round(costoR),ganancia:Math.round(gan)})}
+        style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",background:B.crema,color:B.verde,border:"2px solid "+B.verde,padding:"13px",borderRadius:14,fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"Georgia,serif"}}>
+        <IcoPlus size={17} w={2.5}/> Crear pedido con este precio
+      </button>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+const S = {
+  app:       {fontFamily:"system-ui,-apple-system,sans-serif",height:"100%",display:"flex",flexDirection:"column",background:B.cremaMed,maxWidth:680,margin:"0 auto"},
+  header:    {padding:"14px 18px 12px",background:B.verde},
+  logoRow:   {display:"flex",alignItems:"center",gap:12},
+  logoBadge: {width:40,height:40,borderRadius:10,background:"rgba(255,255,255,0.18)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:900,color:B.crema,fontFamily:"Georgia,serif",letterSpacing:1},
+  logoText:  {fontSize:17,fontWeight:900,color:B.crema,fontFamily:"Georgia,serif",letterSpacing:2},
+  logoSub:   {fontSize:11,letterSpacing:0.5,marginTop:2},
+  body:      {flex:1,overflow:"hidden",display:"flex"},
+  scroll:    {flex:1,overflowY:"auto",padding:"18px 16px 90px"},
+  nav:       {display:"flex",background:B.verde,paddingBottom:6},
+  navBtn:    {flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 0 5px",background:"none",border:"none",cursor:"pointer"},
+  secTitle:  {fontSize:13,fontWeight:800,color:B.verde,textTransform:"uppercase",letterSpacing:1,margin:"0 0 10px",fontFamily:"Georgia,serif"},
+  miniCard:  {flex:1,padding:"14px",borderRadius:16,background:B.crema,border:"1px solid "+B.cremaOsc,cursor:"pointer",textAlign:"center"},
+  itemCard:  {display:"flex",alignItems:"center",width:"100%",padding:"12px 14px",background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:14,marginBottom:8,cursor:"pointer"},
+  searchBox: {display:"flex",alignItems:"center",gap:8,background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:12,padding:"10px 14px",marginBottom:10},
+  searchInput:{border:"none",outline:"none",flex:1,fontSize:14.5,background:"none",color:B.texto},
+  chip:      {border:"none",padding:"6px 13px",borderRadius:20,fontSize:12.5,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"},
+  pedCard:   {display:"flex",alignItems:"center",width:"100%",padding:"14px",background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:16,marginBottom:10,cursor:"pointer"},
+  addBtn:    {display:"flex",alignItems:"center",gap:5,background:B.crema,color:B.verde,border:"1.5px solid "+B.verde,padding:"8px 14px",borderRadius:12,fontWeight:700,fontSize:13.5,cursor:"pointer"},
+  modalBg:   {position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50},
+  modal:     {background:B.cremaMed,width:"100%",maxWidth:680,maxHeight:"92vh",borderRadius:"22px 22px 0 0",display:"flex",flexDirection:"column"},
+  modalHead: {display:"flex",justifyContent:"space-between",alignItems:"center",padding:"18px 20px 12px",borderBottom:"1px solid "+B.cremaOsc},
+  modalBody: {padding:"16px 20px",overflowY:"auto",flex:1},
+  inp:       {width:"100%",boxSizing:"border-box",border:"1px solid "+B.cremaOsc,borderRadius:10,padding:"10px 12px",fontSize:16,outline:"none",background:B.blanco,fontFamily:"inherit",color:B.texto},
+  grid2:     {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
+  calNav:    {background:B.cremaMed,border:"none",borderRadius:10,width:36,height:36,fontSize:18,color:B.verde,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"},
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
