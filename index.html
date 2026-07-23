@@ -150,6 +150,34 @@ function jsonpGet(){
 }
 
 // ══════════════════════════════════════════════════════════
+//  Escritura via formulario oculto (evita CORS)
+// ══════════════════════════════════════════════════════════
+function formPost(data){
+  return new Promise(resolve=>{
+    const name = "mc_frame_" + Date.now();
+    const ifr  = document.createElement("iframe");
+    ifr.name = name; ifr.style.display = "none";
+    document.body.appendChild(ifr);
+
+    const f = document.createElement("form");
+    f.method = "POST"; f.action = GS_URL; f.target = name;
+    f.style.display = "none";
+    const i = document.createElement("input");
+    i.type = "hidden"; i.name = "data"; i.value = JSON.stringify(data);
+    f.appendChild(i);
+    document.body.appendChild(f);
+
+    const limpiar = () => {
+      setTimeout(()=>{ try{ f.remove(); ifr.remove(); }catch{} }, 500);
+      resolve();
+    };
+    ifr.onload = limpiar;
+    setTimeout(limpiar, 12000);
+    f.submit();
+  });
+}
+
+// ══════════════════════════════════════════════════════════
 //  App
 // ══════════════════════════════════════════════════════════
 function App(){
@@ -195,17 +223,15 @@ function App(){
     const data = {pedidos,split};
     try{ localStorage.setItem("mc_data", JSON.stringify(data)); }catch{}
     setSync("guardando");
-    fetch(GS_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(data)})
-      .then(async()=>{
-        // Confirmar releyendo desde el Sheet
-        try{
-          await new Promise(r=>setTimeout(r,1500));
-          const obj = await jsonpGet();
-          const n = obj && Array.isArray(obj.pedidos) ? obj.pedidos.length : -1;
-          setSync(n === pedidos.length ? "ok" : "error");
-        }catch{ setSync("error"); }
-      })
-      .catch(()=>setSync("error"));
+    (async()=>{
+      try{
+        await formPost(data);
+        await new Promise(r=>setTimeout(r,1200));
+        const obj = await jsonpGet();
+        const n = obj && Array.isArray(obj.pedidos) ? obj.pedidos.length : -1;
+        setSync(n === pedidos.length ? "ok" : "error");
+      }catch{ setSync("error"); }
+    })();
   },[pedidos,split,loaded]);
 
   if(!pedidos) return <div style={{display:"flex",height:"100%",alignItems:"center",justifyContent:"center",background:B.crema,color:B.verde,fontFamily:"Georgia,serif",fontSize:16}}>Cargando...</div>;
@@ -359,7 +385,7 @@ function Inicio({pedidos,setPedidos,split,onIr,porMes,maxV,minV}){
       </div>
 
       <Respaldo pedidos={pedidos} setPedidos={setPedidos} split={split}/>
-      <Diagnostico/>
+      <Diagnostico pedidos={pedidos} split={split}/>
 
       <p style={S.secTitle}>Por entregar</p>
       {xEntregar.length===0
@@ -647,7 +673,7 @@ function Respaldo({pedidos,setPedidos,split}){
 }
 
 // ══════════════════════════════════════════════════════════
-function Diagnostico(){
+function Diagnostico({pedidos,split}){
   const [res,setRes] = useState("");
   const [ver,setVer] = useState(false);
 
@@ -663,6 +689,22 @@ function Diagnostico(){
     }
   };
 
+  const escribir = async () => {
+    setRes("VERSION: formPost v3\nEnviando " + pedidos.length + " pedidos al Sheet...");
+    try{
+      await formPost({pedidos,split});
+      setRes(r => r + "\nEnvio despachado. Esperando 3 seg...");
+      await new Promise(r=>setTimeout(r,3000));
+      const obj = await jsonpGet();
+      const n = obj && Array.isArray(obj.pedidos) ? obj.pedidos.length : 0;
+      setRes("VERSION: formPost v3\nEnviados: " + pedidos.length +
+             "\nAhora hay en el Sheet: " + n +
+             (n===pedidos.length ? "\n\nESCRITURA OK" : "\n\nLA ESCRITURA NO LLEGO"));
+    }catch(err){
+      setRes("ERROR AL ESCRIBIR\n" + (err && err.message ? err.message : "desconocido"));
+    }
+  };
+
   return (
     <div style={{marginBottom:18}}>
       <button onClick={()=>setVer(v=>!v)} style={{background:"none",border:"none",color:B.textoSuave,fontSize:11.5,fontWeight:700,cursor:"pointer",padding:"2px 0",textDecoration:"underline"}}>
@@ -670,7 +712,8 @@ function Diagnostico(){
       </button>
       {ver && (
         <div style={{background:B.blanco,border:"1px solid "+B.cremaOsc,borderRadius:14,padding:14,marginTop:8}}>
-          <button onClick={probar} style={{width:"100%",background:B.verde,color:B.crema,border:"none",padding:"10px",borderRadius:10,fontWeight:700,fontSize:13,cursor:"pointer"}}>Probar conexion con el Sheet</button>
+          <button onClick={probar} style={{width:"100%",background:B.verde,color:B.crema,border:"none",padding:"10px",borderRadius:10,fontWeight:700,fontSize:13,cursor:"pointer"}}>Probar lectura</button>
+          <button onClick={escribir} style={{width:"100%",marginTop:8,background:B.verdeMed,color:B.crema,border:"none",padding:"10px",borderRadius:10,fontWeight:700,fontSize:13,cursor:"pointer"}}>Probar escritura</button>
           {res && <pre style={{whiteSpace:"pre-wrap",wordBreak:"break-all",fontSize:11,color:B.texto,background:B.crema,padding:10,borderRadius:8,marginTop:10,marginBottom:0,fontFamily:"monospace"}}>{res}</pre>}
         </div>
       )}
