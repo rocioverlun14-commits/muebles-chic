@@ -239,24 +239,31 @@ function App(){
       if(pref !== null) setDesk(pref === "1");
     }catch(err){}
 
-    jsonpGet().then(function(obj){
-      var cargado = null;
-      if(obj && obj.pedidos && obj.pedidos.length) cargado = obj;
-      if(cargado){
-        setPedidos(cargado.pedidos);
-        if(cargado.split) setSplit(cargado.split);
-        if(cargado.pctSena) setPctSena(cargado.pctSena);
-        setSync("ok");
-      }else{
-        cargarLocal();
-        setSync("vacio");
-      }
-      setLoaded(true);
-    }).catch(function(){
-      cargarLocal();
-      setSync("error");
-      setLoaded(true);
-    });
+    intentarCargar(3);
+
+    function intentarCargar(n){
+      jsonpGet().then(function(obj){
+        if(obj && obj.pedidos && obj.pedidos.length){
+          setPedidos(obj.pedidos);
+          if(obj.split) setSplit(obj.split);
+          if(obj.pctSena) setPctSena(obj.pctSena);
+          setSync("ok");
+          setLoaded(true);
+        }else{
+          cargarLocal();
+          setSync("vacio");
+          setLoaded(true);
+        }
+      }).catch(function(){
+        if(n > 1){
+          setTimeout(function(){ intentarCargar(n-1); }, 1500);
+        }else{
+          cargarLocal();
+          setSync("error");
+          setLoaded(true);
+        }
+      });
+    }
 
     function cargarLocal(){
       try{
@@ -288,6 +295,25 @@ function App(){
       setSync(n === pedidos.length ? "ok" : "error");
     }).catch(function(){ setSync("error"); });
   }, [pedidos, split, pctSena, loaded]);
+
+  function recargarDrive(){
+    setSync("cargando");
+    return jsonpGet().then(function(obj){
+      if(obj && obj.pedidos && obj.pedidos.length){
+        first.current = true;
+        setPedidos(obj.pedidos);
+        if(obj.split) setSplit(obj.split);
+        if(obj.pctSena) setPctSena(obj.pctSena);
+        setSync("ok");
+        return obj.pedidos.length;
+      }
+      setSync("vacio");
+      return 0;
+    }).catch(function(){
+      setSync("error");
+      return -1;
+    });
+  }
 
   function toggleDesk(){
     var nd = !desk;
@@ -335,7 +361,7 @@ function App(){
           np.total = d.total; np.costo = d.costo; np.ganancia = d.ganancia;
           setEditing(np);
         }}/> : null}
-      {tab === "config"    ? <Config pedidos={pedidos} setPedidos={setPedidos} split={split} pctSena={pctSena} setPctSena={setPctSena} desk={desk} toggleDesk={toggleDesk}/> : null}
+      {tab === "config"    ? <Config pedidos={pedidos} setPedidos={setPedidos} split={split} pctSena={pctSena} setPctSena={setPctSena} desk={desk} toggleDesk={toggleDesk} onRecargar={recargarDrive}/> : null}
     </React.Fragment>
   );
 
@@ -1169,9 +1195,21 @@ function Config(props){
 
         <div style={card}>
           <div style={S.cardTitle}>Sincronizacion ({VERSION})</div>
+          <button onClick={function(){
+              setRes("Trayendo datos de Drive...");
+              props.onRecargar().then(function(n){
+                if(n > 0) setRes("Listo. Se cargaron " + n + " pedidos desde Drive.");
+                else if(n === 0) setRes("El Sheet esta vacio. No se cargo nada.");
+                else setRes("No se pudo conectar. Probá de nuevo con mejor señal.");
+              });
+            }}
+            style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,width:"100%",background:B.verde,color:B.crema,border:"none",borderRadius:10,padding:"12px",fontWeight:700,fontSize:13.5,cursor:"pointer",marginBottom:8}}>
+            <IcoCloud size={16} w={2}/> Traer datos de Drive
+          </button>
+          <p style={{fontSize:11.5,color:B.textoSuave,margin:"0 0 10px"}}>Usalo si abris la app en otro dispositivo y no ves los datos actualizados.</p>
           <div style={{display:"flex",gap:8}}>
-            <button onClick={probarLectura} style={Object.assign({}, btn, {background:B.verde,color:B.crema,border:"none"})}>Probar lectura</button>
-            <button onClick={probarEscritura} style={Object.assign({}, btn, {background:B.verdeMed,color:B.crema,border:"none"})}>Probar escritura</button>
+            <button onClick={probarLectura} style={Object.assign({}, btn, {background:B.cremaMed,color:B.verdeMed,border:"1px solid "+B.cremaOsc})}>Probar lectura</button>
+            <button onClick={probarEscritura} style={Object.assign({}, btn, {background:B.cremaMed,color:B.verdeMed,border:"1px solid "+B.cremaOsc})}>Probar escritura</button>
           </div>
           {res ? <pre style={{whiteSpace:"pre-wrap",wordBreak:"break-all",fontSize:11.5,color:B.texto,background:B.crema,padding:11,borderRadius:8,marginTop:10,marginBottom:0,fontFamily:"monospace"}}>{res}</pre> : null}
         </div>
